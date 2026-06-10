@@ -15,6 +15,7 @@ import Profile from './Pages/Profile';
 import Challenge from './Pages/Challenge';
 import Matchmaking from './Pages/Matchmaking';
 import ResetPassword from './Pages/ResetPassword';
+import ForgotPassword from './Pages/ForgotPassword';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>

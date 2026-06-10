@@ -20,7 +20,7 @@ const NAV_LINKS = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div style={styles.page}>
@@ -51,8 +51,22 @@ export default function Home() {
           ))}
         </div>
         <div style={styles.navRight}>
-          <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
-          <button onClick={() => navigate('/register')} style={styles.registerBtn}>register()</button>
+          {user ? (
+            <>
+              <div style={styles.xpBadge}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                {user.totalXP || 0} XP
+              </div>
+              <button onClick={async () => { await logout(); }} style={styles.logoutBtn}>logout()</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
+              <button onClick={() => navigate('/register')} style={styles.registerBtn}>register()</button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -169,12 +183,12 @@ const styles = {
   catCard: { padding: '18px 20px', background: '#2d2c28', cursor: 'pointer', transition: 'background 0.15s', borderBottom: '3px solid #75715e' },
   catIcon: { fontFamily: "'Space Mono', monospace", fontSize: '22px', fontWeight: 700, marginBottom: '8px' },
   catName: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, color: '#f8f8f2', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' },
-  catCount: { fontSize: '11px', color: '#75715e' },
+  catCount: { fontSize: '14px', color: '#75715e' },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderBottom: '3px solid #75715e' },
   statCard: { padding: '18px 20px', textAlign: 'center', background: '#272822' },
   statVal: { fontFamily: "'Space Mono', monospace", fontSize: '28px', fontWeight: 700 },
-  statLabel: { fontSize: '11px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' },
+  statLabel: { fontSize: '14px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' },
 
   diffRow: { display: 'flex', alignItems: 'center', padding: '16px 24px', borderBottom: '3px solid #75715e', background: '#1e1f1a' },
   diffLabel: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', marginRight: '14px', textTransform: 'uppercase', letterSpacing: '1px' },
@@ -187,4 +201,5 @@ const styles = {
   navRight: { display: 'flex', alignItems: 'center', gap: '8px' },
   loginBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '5px 14px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
   registerBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#272822', border: '2px solid #a6e22e', padding: '5px 14px', background: '#a6e22e', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+  logoutBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#f92672', border: '2px solid #f92672', padding: '5px 14px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
 };
