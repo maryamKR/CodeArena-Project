@@ -5,7 +5,10 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
-;
+
+const authRoutes = require("./routes/authRoutes");
+const errorHandler = require("./middlewares/errorHandler");
+
 const app = express();
 
 // Trust the first proxy (e.g. Railway, Heroku, Nginx)
@@ -54,11 +57,15 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Mount Routes
+app.use("/api/auth", authRoutes);
+
 // Test Route
 app.get("/api/test", (req, res) => {
   res.json({ message: "codeArena Backend API is running smoothly!" });
 });
 
-
+// Error Handler Middleware (Should be last)
+app.use(errorHandler);
 
 module.exports = app;
