@@ -8,33 +8,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/api/auth/me")
+    api.get("/auth/me")
       .then((res) => setUser(res.data))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   const register = async (username, email, password) => {
-    const res = await api.post("/api/auth/register", { username, email, password });
+    const res = await api.post("/auth/register", { username, email, password });
     setUser(res.data);
   };
 
   const login = async (email, password) => {
-    const res = await api.post("/api/auth/login", { email, password });
+    const res = await api.post("/auth/login", { email, password });
     setUser(res.data);
   };
 
   const logout = async () => {
-    await api.post("/api/auth/logout");
+    await api.post("/auth/logout");
     setUser(null);
   };
 
   const forgotPassword = async (email) => {
-    await api.post("/api/auth/forgot-password", { email });
+    await api.post("/auth/forgot-password", { email });
   };
 
   const resetPassword = async (resetToken, password) => {
-    await api.post(`/api/auth/reset-password/${resetToken}`, { password });
+    await api.post(`/auth/reset-password/${resetToken}`, { password });
   };
 
   return (
@@ -44,6 +44,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }
