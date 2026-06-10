@@ -9,7 +9,6 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const categoryRoutes = require('./routes/categoryRoutes');
-const scoreRoutes = require('./routes/scoreRoutes');
 
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -64,7 +63,6 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api/scores", scoreRoutes);
 
 // Test Route
 app.get("/api/test", (req, res) => {
