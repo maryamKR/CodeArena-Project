@@ -27,14 +27,14 @@ export default function App() {
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<><Navbar /><Dashboard /></>} />
-            <Route path="/quiz" element={<><Navbar /><Quiz /></>} />
-            <Route path="/results" element={<><Navbar /><Results /></>} />
-            <Route path="/leaderboard" element={<><Navbar /><Leaderboard /></>} />
-            <Route path="/hall-of-fame" element={<><Navbar /><HallOfFame /></>} />
-            <Route path="/profile" element={<><Navbar /><Profile /></>} />
-            <Route path="/challenge" element={<><Navbar /><Challenge /></>} />
-            <Route path="/matchmaking" element={<><Navbar /><Matchmaking /></>} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/quiz" element={<Quiz />} />
+            <Route path="/results" element={<Results />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/hall-of-fame" element={<HallOfFame />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/challenge" element={<Challenge />} />
+            <Route path="/matchmaking" element={<Matchmaking />} />
           </Route>
         </Routes>
       </BrowserRouter>
