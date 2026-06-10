@@ -9,6 +9,14 @@ const CATEGORIES = [
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
+const NAV_LINKS = [
+  { label: 'Home',        path: '/' },
+  { label: 'Dashboard',   path: '/dashboard' },
+  { label: 'Quiz',        path: '/quiz' },
+  { label: 'Leaderboard', path: '/leaderboard' },
+  { label: 'Profile',     path: '/profile' },
+];
+
 export default function Home() {
   const navigate = useNavigate();
 
@@ -24,9 +32,19 @@ export default function Home() {
           {' '}ARENA
         </div>
         <div style={styles.navLinks}>
-          {['Home', 'Quiz', 'Leaderboard', 'Profile'].map((link, i) => (
-            <a key={link} href="#" style={{ ...styles.navLink, ...(i === 0 ? styles.navLinkActive : {}), ...(i === 3 ? { borderRight: '2px solid #75715e' } : {}) }}>
-              {link}
+          {NAV_LINKS.map((link, i) => (
+            <a
+            
+              key={link.label}
+              onClick={() => navigate(link.path)}
+              style={{
+                ...styles.navLink,
+                ...(i === 0 ? styles.navLinkActive : {}),
+                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                cursor: 'pointer',
+              }}
+            >
+              {link.label}
             </a>
           ))}
         </div>
