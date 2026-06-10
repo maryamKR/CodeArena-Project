@@ -9,9 +9,9 @@ const DIFFICULTY_MULTIPLIERS = {
 const BASE_XP_PER_ANSWER = 10;
 
 const RANK_THRESHOLDS = [
-  { minXP: 5000, rank: 'Expert' },
-  { minXP: 2000, rank: 'Advanced' },
-  { minXP: 500,  rank: 'Intermediate' },
+  { minXP: 10000, rank: 'Master' },
+  { minXP: 5000, rank: 'Advanced' },
+  { minXP: 1000,  rank: 'Intermediate' },
 ];
 
 class ScoreService {
@@ -41,23 +41,29 @@ class ScoreService {
       correctAnswers * BASE_XP_PER_ANSWER * difficultyMultiplier * speedBonus
     );
 
-    // 4. Update User
-    const user = await User.findById(userId);
+    // 4. Atomically increment totalXP to prevent race conditions
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { totalXP: calculatedXP } },
+      { new: true }
+    );
     if (!user) {
       throw new Error('User not found');
     }
 
-    user.totalXP += calculatedXP;
-
-    // 5. Rank progression (Beginner -> Intermediate -> Advanced -> Expert)
+    // 5. Rank progression (Beginner -> Intermediate -> Advanced -> Master)
+    // Evaluated against the post-increment value; idempotent if concurrent
+    let newRank = 'Beginner';
     for (const { minXP, rank } of RANK_THRESHOLDS) {
       if (user.totalXP >= minXP) {
-        user.rank = rank;
+        newRank = rank;
         break;
       }
     }
-
-    await user.save();
+    if (user.rank !== newRank) {
+      user.rank = newRank;
+      await user.save();
+    }
 
     return {
       earnedXP: calculatedXP,
