@@ -1,11 +1,10 @@
-
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
-import api from '../api/axios';
 
 export default function Register() {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { register  } = useAuth();
   const [form, setForm] = useState({ username: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,12 +17,7 @@ export default function Register() {
     if (form.password !== form.confirm) return setError('Passwords do not match');
     setLoading(true);
     try {
-      const res = await api.post('/api/auth/register', {
-        username: form.username,
-        email: form.email,
-        password: form.password,
-      });
-      setUser(res.data);
+      await register(form.username, form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
