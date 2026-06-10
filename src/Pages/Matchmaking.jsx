@@ -1,0 +1,1 @@
+export default function Matchmaking() { return <div>Matchmaking</div>; }
