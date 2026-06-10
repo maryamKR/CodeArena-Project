@@ -154,7 +154,7 @@ Sends a password reset email if the account exists. Always returns the same resp
 
 Resets the user's password using the token from the reset email. Token expires in 10 minutes.
 
-**Rate limit:** 3 requests per hour per IP
+**Rate limit:** 5 requests per hour per IP
 
 **URL params:**
 - `resetToken` — token received in the reset email
@@ -178,6 +178,129 @@ Resets the user's password using the token from the reset email. Token expires i
 **Error responses:**
 - `400` — invalid or expired token
 - `429` — rate limit exceeded
+
+---
+
+## Question Endpoints
+
+### Get Quiz Questions
+`GET /questions`
+
+Fetches a random sample of up to 10 questions for a quiz.
+
+**Query params (optional):**
+- `category` — slug of the category to filter by
+- `difficulty` — `Easy`, `Medium`, or `Hard`
+- `exclude` — comma-separated list of question ObjectIds to exclude (prevents duplicates)
+
+**Response `200`:**
+```json
+[
+  {
+    "_id": "...",
+    "text": "What does HTML stand for?",
+    "correct_answer": true,
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#ff0000" },
+    "difficulty": "Easy"
+  }
+]
+```
+
+---
+
+### Add Question
+`POST /questions`
+
+Adds a new question to the database.
+
+**Auth required:** yes (Admin only)
+
+**Request body:**
+```json
+{
+  "text": "Is JavaScript a strongly typed language?",
+  "correct_answer": false,
+  "category": "60d5ecb8b392d700153c3c12",
+  "difficulty": "Medium"
+}
+```
+
+**Response `201`:**
+```json
+{
+  "_id": "...",
+  "text": "Is JavaScript a strongly typed language?",
+  "correct_answer": false,
+  "category": "60d5ecb8b392d700153c3c12",
+  "difficulty": "Medium"
+}
+```
+
+---
+
+### Delete Question
+`DELETE /questions/:id`
+
+Deletes a question by its ID.
+
+**Auth required:** yes (Admin only)
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Question deleted successfully"
+}
+```
+
+---
+
+## Category Endpoints
+
+### Get Categories
+`GET /categories`
+
+Fetches all available categories.
+
+**Response `200`:**
+```json
+[
+  {
+    "_id": "...",
+    "name": "Frontend",
+    "slug": "frontend",
+    "color": "#e34c26"
+  }
+]
+```
+
+---
+
+### Add Category
+`POST /categories`
+
+Creates a new category. Fails if the slug is already in use.
+
+**Auth required:** yes (Admin only)
+
+**Request body:**
+```json
+{
+  "name": "Frontend",
+  "slug": "frontend",
+  "color": "#e34c26"
+}
+```
+
+**Response `201`:**
+```json
+{
+  "_id": "...",
+  "name": "Frontend",
+  "slug": "frontend",
+  "color": "#e34c26"
+}
+```
 
 ---
 

@@ -12,18 +12,16 @@ exports.register = async (userData) => {
 
   const user = await User.create({ username, email, password });
 
-  const userObj = user.toObject();
-  delete userObj.password;
+
 
   return {
-  user: {
-    _id: user._id,
-    username: user.username,
-    email: user.email,
-  },
-  token: generateToken(user._id),
-};
-
+    user: {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+    },
+    token: generateToken(user._id),
+  };
 };
 
 exports.login = async (email, password) => {
@@ -33,26 +31,20 @@ exports.login = async (email, password) => {
   }
 
   // Remove password from output
-  const userObj = user.toObject();
-  delete userObj.password;
 
   return {
-  user: {
-    _id: user._id,
-    username: user.username,
-    email: user.email,
-  },
-  token: generateToken(user._id),
-};
-};
-
-exports.getUserProfile = async (userId) => {
-  const user = await User.findById(userId).select("-password");
-  if (!user) throw new Error("User not found");
-  return user.toObject();
+    user: {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+    },
+    token: generateToken(user._id),
+  };
 };
 
-exports.forgotPassword = async (email, protocol, host) => {
+
+
+exports.forgotPassword = async (email, frontendUrl) => {
   const user = await User.findOne({ email });
 
   const genericMessage =
@@ -67,13 +59,33 @@ exports.forgotPassword = async (email, protocol, host) => {
   await user.save({ validateBeforeSave: false });
 
   // Create reset URL
-  const resetUrl = `${protocol}://${host}/reset-password/${resetToken}`;
+  const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
   const message = `
-  <h2>Password Reset Request</h2>
-  <p>You requested a password reset for your CodeArena account.</p>
-  <p>Click the button below to reset your password. This link expires in 10 minutes.</p>
-  <a href="${resetUrl}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">Reset Password</a>
-  <p>If you didn't request this, ignore this email.</p>
+  <div style="font-family: 'Space Mono', monospace; background: #272822; color: #f8f8f2; padding: 24px; border: 3px solid #75715e;">
+    <h2 style="color: #a6e22e; border-bottom: 2px solid #75715e; padding-bottom: 10px;">
+      [CODE] ARENA: Password Reset
+    </h2>
+    <p>You requested a password reset for your account.</p>
+    <p>Click the button below to reset your password. This link expires in 10 minutes.</p>
+    
+    <a href="${resetUrl}" style="
+      display: inline-block;
+      background: #a6e22e; 
+      color: #272822; 
+      padding: 12px 32px; 
+      text-decoration: none; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      border: 3px solid #a6e22e;
+      letter-spacing: 2px;
+    ">
+      Reset Password
+    </a>
+    
+    <p style="margin-top: 24px; font-size: 12px; color: #75715e;">
+      // If you didn't request this, you can safely ignore this email.
+    </p>
+  </div>
 `;
 
   try {
@@ -115,15 +127,13 @@ exports.resetPassword = async (resetToken, password) => {
   await user.save();
 
   // Remove password from output
-  const userObj = user.toObject();
-  delete userObj.password;
 
   return {
-  user: {
-    _id: user._id,
-    username: user.username,
-    email: user.email,
-  },
-  token: generateToken(user._id),
-};
+    user: {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+    },
+    token: generateToken(user._id),
+  };
 };

@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../Context/AuthContext';
+import api from '../api/axios';
 
 const CATEGORIES = [
   { id: 'js',   label: 'JavaScript', short: 'JS',  count: 142, color: '#e6db74' },
