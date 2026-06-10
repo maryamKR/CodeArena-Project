@@ -14,6 +14,7 @@ import HallOfFame from './Pages/HallOfFame';
 import Profile from './Pages/Profile';
 import Challenge from './Pages/Challenge';
 import Matchmaking from './Pages/Matchmaking';
+import ResetPassword from './Pages/ResetPassword';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
@@ -35,6 +37,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/challenge" element={<Challenge />} />
             <Route path="/matchmaking" element={<Matchmaking />} />
+            
           </Route>
         </Routes>
       </BrowserRouter>
