@@ -2,7 +2,7 @@ const questionService = require('../services/questionService');
 
 const getQuiz = async (req, res, next) => {
   try {
-    const { category, difficulty, exclude } = req.query;
+    const { category, difficulty, exclude } = req.validated.query;
     const excludeIds = exclude ? exclude.split(',') : [];
 
     const questions = await questionService.getQuizQuestions({
@@ -19,7 +19,7 @@ const getQuiz = async (req, res, next) => {
 
 const addQuestion = async (req, res, next) => {
   try {
-    const newQuestion = await questionService.createQuestion(req.body);
+    const newQuestion = await questionService.createQuestion(req.validated.body);
     res.status(201).json(newQuestion);
   } catch (error) {
     next(error); 
