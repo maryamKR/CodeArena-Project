@@ -304,6 +304,56 @@ Creates a new category. Fails if the slug is already in use.
 
 ---
 
+## Score Endpoints
+
+### Submit Quiz Score
+`POST /scores`
+
+Submits quiz results, calculates XP based on performance, and updates the user's total XP and rank.
+
+**Auth required:** yes
+
+**Request body:**
+```json
+{
+  "correctAnswers": 8,
+  "difficulty": "Medium",
+  "timeLeft": 45,
+  "timeLimit": 120
+}
+```
+
+**Parameters:**
+- `correctAnswers` (required, number): Number of correct answers.
+- `difficulty` (optional, string): Quiz difficulty (`Easy`, `Medium`, `Hard`). Defaults to `Easy` multiplier.
+- `timeLeft` (optional, number): Seconds remaining when quiz was finished.
+- `timeLimit` (optional, number): Total time limit for the quiz in seconds.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "earnedXP": 110,
+    "totalXP": 610,
+    "rank": "Intermediate",
+    "breakdown": {
+      "correctAnswers": 8,
+      "baseXPPerAnswer": 10,
+      "difficultyMultiplier": 2,
+      "speedBonus": 1.38
+    }
+  },
+  "message": "Score submitted and XP updated successfully"
+}
+```
+
+**Error responses:**
+- `400` — Invalid or missing `correctAnswers`
+- `401` — Not authenticated
+
+---
+
 ## Security Notes
 
 - Passwords are hashed with bcrypt (salt rounds: 10)
