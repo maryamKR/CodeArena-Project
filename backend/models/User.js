@@ -37,6 +37,11 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user'
+    },
     isOnline: {
       type: Boolean,
       default: false,

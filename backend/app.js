@@ -7,6 +7,9 @@ const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 
 const authRoutes = require("./routes/authRoutes");
+const questionRoutes = require("./routes/questionRoutes");
+const categoryRoutes = require('./routes/categoryRoutes');
+
 const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
@@ -20,7 +23,6 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : ["http://localhost:5173", "http://localhost:3000"];
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Secure backend HTTP headers with Helmet
 app.use(
@@ -59,6 +61,8 @@ app.use(cookieParser());
 
 // Mount Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/questions", questionRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // Test Route
 app.get("/api/test", (req, res) => {
