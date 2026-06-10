@@ -18,7 +18,7 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post('/api/auth/login', form);
-      setUser(res.data.user);
+      setUser(res.data);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials');

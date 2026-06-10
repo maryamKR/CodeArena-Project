@@ -23,7 +23,7 @@ export default function Register() {
         email: form.email,
         password: form.password,
       });
-      setUser(res.data.user);
+      setUser(res.data);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
