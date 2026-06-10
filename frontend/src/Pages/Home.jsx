@@ -1,24 +1,26 @@
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../Context/AuthContext';
 
 const CATEGORIES = [
-  { id: 'js',   label: 'JavaScript', short: 'JS',  count: 142, color: '#e6db74' },
-  { id: 'py',   label: 'Python',     short: 'PY',  count: 98,  color: '#66d9e8' },
-  { id: 'sql',  label: 'SQL',        short: 'SQL', count: 76,  color: '#f92672' },
-  { id: 'algo', label: 'Algorithms', short: 'AL',  count: 54,  color: '#a6e22e' },
+  { id: 'js', label: 'JavaScript', short: 'JS', count: 142, color: '#e6db74' },
+  { id: 'py', label: 'Python', short: 'PY', count: 98, color: '#66d9e8' },
+  { id: 'sql', label: 'SQL', short: 'SQL', count: 76, color: '#f92672' },
+  { id: 'algo', label: 'Algorithms', short: 'AL', count: 54, color: '#a6e22e' },
 ];
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 const NAV_LINKS = [
-  { label: 'Home',        path: '/' },
-  { label: 'Dashboard',   path: '/dashboard' },
-  { label: 'Quiz',        path: '/quiz' },
+  { label: 'Home', path: '/' },
+  { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Quiz', path: '/quiz' },
   { label: 'Leaderboard', path: '/leaderboard' },
-  { label: 'Profile',     path: '/profile' },
+  { label: 'Profile', path: '/profile' },
 ];
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <div style={styles.page}>
@@ -34,7 +36,7 @@ export default function Home() {
         <div style={styles.navLinks}>
           {NAV_LINKS.map((link, i) => (
             <a
-            
+
               key={link.label}
               onClick={() => navigate(link.path)}
               style={{
@@ -48,11 +50,9 @@ export default function Home() {
             </a>
           ))}
         </div>
-        <div style={styles.xpBadge}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-          320 XP
+        <div style={styles.navRight}>
+          <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
+          <button onClick={() => navigate('/register')} style={styles.registerBtn}>register()</button>
         </div>
       </nav>
 
@@ -93,9 +93,9 @@ export default function Home() {
       {/* Stats */}
       <div style={styles.statsGrid}>
         {[
-          { val: '47',  label: 'Quizzes played', color: '#a6e22e' },
-          { val: '320', label: 'Total XP',        color: '#e6db74' },
-          { val: '#12', label: 'Global rank',     color: '#66d9e8' },
+          { val: '47', label: 'Quizzes played', color: '#a6e22e' },
+          { val: '320', label: 'Total XP', color: '#e6db74' },
+          { val: '#12', label: 'Global rank', color: '#66d9e8' },
         ].map((stat, i) => (
           <div key={stat.label} style={{ ...styles.statCard, borderRight: i < 2 ? '3px solid #75715e' : 'none' }}>
             <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
@@ -125,7 +125,7 @@ export default function Home() {
       <div style={styles.startRow}>
         <button
           style={styles.startBtn}
-          onClick={() => navigate('/quiz')}
+          onClick={() => navigate(user ? '/quiz' : '/login')}
           onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
           onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
         >
@@ -133,7 +133,7 @@ export default function Home() {
         </button>
         <div style={styles.streak}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="#f92672" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-            <path d="M12 2c0 0-5 4-5 9a5 5 0 0010 0c0-2-1-4-2-5 0 2-1 3-3 3s-2-2-2-3c0-2 2-4 2-4z"/>
+            <path d="M12 2c0 0-5 4-5 9a5 5 0 0010 0c0-2-1-4-2-5 0 2-1 3-3 3s-2-2-2-3c0-2 2-4 2-4z" />
           </svg>
           5 day streak
         </div>
@@ -184,4 +184,7 @@ const styles = {
   startRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: '#272822' },
   startBtn: { fontFamily: "'Space Mono', monospace", fontSize: '14px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '12px 32px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
   streak: { fontFamily: "'Space Mono', monospace", fontSize: '13px', color: '#e6db74', fontWeight: 700, display: 'flex', alignItems: 'center' },
+  navRight: { display: 'flex', alignItems: 'center', gap: '8px' },
+  loginBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '5px 14px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+  registerBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#272822', border: '2px solid #a6e22e', padding: '5px 14px', background: '#a6e22e', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
 };
