@@ -19,7 +19,7 @@ export default function Quiz() {
     const { user } = useAuth();
 
     const category = location.state?.category || 'js';
-    const difficulty = location.state?.difficulty || 'easy';
+    const difficulty = location.state?.difficulty || 'Easy';
 
     const [questions, setQuestions] = useState([]);
     const [current, setCurrent] = useState(0);
@@ -42,7 +42,7 @@ export default function Quiz() {
                 const res = await api.get(`/questions?category=${category}&difficulty=${difficulty}${exclude ? `&exclude=${exclude}` : ''}`);
                 setQuestions(res.data);
                 setSeenIds(prev => [...prev, ...res.data.map(q => q._id)]);
-            } catch (err) {
+            } catch {
                 setError('Failed to load questions');
             } finally {
                 setLoading(false);
@@ -51,20 +51,7 @@ export default function Quiz() {
         fetchQuestions();
     }, []);
 
-    // Timer
-    useEffect(() => {
-        if (answered || loading) return;
-        if (timer === 0) {
-            setExploding(true);
-            setTimeout(() => {
-                setExploding(false);
-                handleNext();
-            }, 1000);
-            return;
-        }
-        const interval = setInterval(() => setTimer(t => t - 1), 1000);
-        return () => clearInterval(interval);
-    }, [timer, answered, loading]);
+    
 
     const getTimerColor = () => {
         if (timer > 20) return '#a6e22e';
@@ -84,16 +71,55 @@ export default function Quiz() {
         }
     }, [answered, questions, current]);
 
-    const handleNext = useCallback(() => {
+    const handleNext = useCallback(async () => {
         if (current + 1 >= questions.length) {
-            navigate('/results', { state: { score, total: questions.length, category, difficulty } });
+            try {
+                const res = await api.post('/scores', {
+                    correctAnswers: score,
+                    difficulty,
+                    timeLeft: timer,
+                    timeLimit: TIMER_MAX,
+                });
+                navigate('/results', {
+                    state: {
+                        result: res.data.data,  // XP, newRank etc from Assma
+                        score,
+                        total: questions.length,
+                        category,
+                        difficulty,
+                    },
+                });
+            } catch {
+                // still navigate even if score submit fails
+                navigate('/results', {
+                    state: { score, total: questions.length, category, difficulty },
+                });
+            }
             return;
         }
         setCurrent(c => c + 1);
         setSelected(null);
         setAnswered(false);
         setTimer(TIMER_MAX);
-    }, [current, questions.length, score, category, difficulty, navigate]);
+    }, [current, questions.length, score, timer, category, difficulty, navigate]);
+
+
+    // Timer
+    useEffect(() => {
+        if (answered || loading) return;
+        if (timer === 0) {
+            setTimeout(() => {
+                setExploding(true);
+                setTimeout(() => {
+                    setExploding(false);
+                    handleNext();
+                }, 1000);
+            }, 0); // ← moves setState out of the effect body
+            return;
+        }
+        const interval = setInterval(() => setTimer(t => t - 1), 1000);
+        return () => clearInterval(interval);
+    }, [timer, answered, loading, handleNext]);
 
     // Keyboard shortcuts
     useEffect(() => {
