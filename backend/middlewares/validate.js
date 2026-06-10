@@ -9,8 +9,14 @@ const validate = (schema) => async (req, res, next) => {
 
     
     if (parsed.body) req.body = parsed.body;
-    if (parsed.query) req.query = parsed.query;
-    if (parsed.params) req.params = parsed.params;
+    if (parsed.query) {
+      Object.keys(req.query).forEach(key => delete req.query[key]);
+      Object.assign(req.query, parsed.query);
+    }
+    if (parsed.params) {
+      Object.keys(req.params).forEach(key => delete req.params[key]);
+      Object.assign(req.params, parsed.params);
+    }
 
     return next();
   } catch (error) {

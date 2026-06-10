@@ -1,14 +1,16 @@
 const authService = require('../services/authService');
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+};
+
 exports.registerUser = async (req, res, next) => {
   try {
     const { user, token } = await authService.register(req.body);
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, cookieOptions);
     res.status(201).json(user);
   } catch (err) { next(err); }
 };
@@ -16,12 +18,7 @@ exports.registerUser = async (req, res, next) => {
 exports.loginUser = async (req, res, next) => {
   try {
     const { user, token } = await authService.login(req.body.email, req.body.password);
-    res.cookie("token", token, { 
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-     });
+    res.cookie("token", token, cookieOptions);
     res.json(user);
   } catch (err) { next(err); }
 };
@@ -52,7 +49,8 @@ exports.logoutUser = (req, res) => {
 
 exports.forgotPassword = async (req, res, next) => {
   try {
-    await authService.forgotPassword(req.body.email, req.protocol, req.get('host'));
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    await authService.forgotPassword(req.body.email, frontendUrl);
     res.status(200).json({ success: true, message: "Email sent" });
   } catch (err) { next(err); }
 };
@@ -60,12 +58,7 @@ exports.forgotPassword = async (req, res, next) => {
 exports.resetPassword = async (req, res, next) => {
   try {
     const { user, token } = await authService.resetPassword(req.params.resetToken, req.body.password);
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, cookieOptions);
     res.status(200).json(user);
   } catch (err) { next(err); }
 };

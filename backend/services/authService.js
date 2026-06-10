@@ -12,8 +12,7 @@ exports.register = async (userData) => {
 
   const user = await User.create({ username, email, password });
 
-  const userObj = user.toObject();
-  delete userObj.password;
+
 
   return {
     user: {
@@ -32,8 +31,6 @@ exports.login = async (email, password) => {
   }
 
   // Remove password from output
-  const userObj = user.toObject();
-  delete userObj.password;
 
   return {
     user: {
@@ -45,13 +42,9 @@ exports.login = async (email, password) => {
   };
 };
 
-exports.getUserProfile = async (userId) => {
-  const user = await User.findById(userId).select("-password");
-  if (!user) throw new Error("User not found");
-  return user.toObject();
-};
 
-exports.forgotPassword = async (email, protocol, host) => {
+
+exports.forgotPassword = async (email, frontendUrl) => {
   const user = await User.findOne({ email });
 
   const genericMessage =
@@ -66,7 +59,7 @@ exports.forgotPassword = async (email, protocol, host) => {
   await user.save({ validateBeforeSave: false });
 
   // Create reset URL
-  const resetUrl = `${protocol}://${host}/reset-password/${resetToken}`;
+  const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
   const message = `
   <div style="font-family: 'Space Mono', monospace; background: #272822; color: #f8f8f2; padding: 24px; border: 3px solid #75715e;">
     <h2 style="color: #a6e22e; border-bottom: 2px solid #75715e; padding-bottom: 10px;">
@@ -134,8 +127,6 @@ exports.resetPassword = async (resetToken, password) => {
   await user.save();
 
   // Remove password from output
-  const userObj = user.toObject();
-  delete userObj.password;
 
   return {
     user: {

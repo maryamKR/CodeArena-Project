@@ -13,7 +13,8 @@ const registerSchema = z.object({
       .email("Please provide a valid email address"),
     password: z
       .string({ required_error: "Password is required" })
-      .min(6, "Password must be at least 6 characters long"),
+      .min(6, "Password must be at least 6 characters long")
+      .max(72, "Password cannot exceed 72 characters"),
   }),
 });
 
@@ -45,7 +46,8 @@ const resetPasswordSchema = z.object({
   body: z.object({
     password: z
       .string({ required_error: "Password is required" })
-      .min(6, "Password must be at least 6 characters long"),
+      .min(6, "Password must be at least 6 characters long")
+      .max(72, "Password cannot exceed 72 characters"),
   }),
 });
 

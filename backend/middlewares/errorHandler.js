@@ -1,9 +1,9 @@
 const { ZodError } = require("zod");
 
 const errorHandler = (err, req, res, next) => {
-  // 1. Default fallback values
-  let statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
-  let message = err.message || "Internal Server Error";
+  console.error(`[Error] ${err.name || 'Error'}: ${err.message}`);
+let statusCode = err.statusCode || (res.statusCode >= 400 ? res.statusCode : 500);
+let message = err.message || "Internal Server Error";
 
   // 2. Zod Validation Errors (Request Body Validation)
   if (err instanceof ZodError) {
