@@ -7,4 +7,10 @@ const leaderboardSchema = z.object({
   })
 });
 
-module.exports = { leaderboardSchema };
+const hallOfFameSchema = z.object({
+  query: z.object({
+    limit: z.string().regex(/^\d+$/).transform(Number).optional()
+  }).optional()
+});
+
+module.exports = { leaderboardSchema, hallOfFameSchema };

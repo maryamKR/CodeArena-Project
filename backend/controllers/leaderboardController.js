@@ -44,3 +44,27 @@ exports.getLeaderboard = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Get hall of fame
+ * @route   GET /api/hall-of-fame
+ * @access  Public
+ */
+exports.getHallOfFame = async (req, res, next) => {
+  try {
+    const requestedLimit = req.validated?.query?.limit || 10;
+    const limit = Math.min(requestedLimit, 10); // Enforce max top 10
+
+    const topUsers = await User.find({ totalXP: { $gt: 0 } })
+      .sort({ totalXP: -1 })
+      .limit(limit)
+      .select('username totalXP badges rank');
+
+    res.status(200).json({
+      success: true,
+      data: topUsers
+    });
+  } catch (error) {
+    next(error);
+  }
+};

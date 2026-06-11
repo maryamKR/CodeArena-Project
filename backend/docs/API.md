@@ -387,6 +387,32 @@ Fetches the top users sorted by XP descending.
 
 ---
 
+### Get Hall of Fame
+`GET /hall-of-fame`
+
+Fetches the top 10 all-time users globally sorted by total XP descending. Returns a condensed profile containing only username, totalXP, badges, and rank.
+
+**Query params (optional):**
+- `limit` — Maximum number of users to return (capped at a maximum of 10).
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "username": "mastercoder",
+      "totalXP": 15000,
+      "rank": "Master",
+      "badges": ["First Blood"]
+    }
+  ]
+}
+```
+
+---
+
 ## Security Notes
 
 - Passwords are hashed with bcrypt (salt rounds: 10)
