@@ -354,6 +354,39 @@ Submits quiz results, calculates XP based on performance, and updates the user's
 
 ---
 
+## Leaderboard Endpoints
+
+### Get Leaderboard
+`GET /leaderboard`
+
+Fetches the top users sorted by XP descending.
+
+**Query params (optional):**
+- `category` — slug or ObjectId of the category to filter by (sorts by category-specific XP).
+- `limit` — Maximum number of users to return (default: 10).
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "username": "mastercoder",
+      "totalXP": 15000,
+      "categoryXP": {
+        "60d5ecb8b392d700153c3c12": 5000
+      },
+      "rank": "Master",
+      "badges": ["First Blood"],
+      "isOnline": true
+    }
+  ]
+}
+```
+
+---
+
 ## Security Notes
 
 - Passwords are hashed with bcrypt (salt rounds: 10)

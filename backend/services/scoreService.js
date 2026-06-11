@@ -24,9 +24,10 @@ class ScoreService {
    * @param {string} difficulty - Difficulty of the quiz ('Easy', 'Medium', 'Hard')
    * @param {number} timeLeft - Remaining time when finished (in seconds)
    * @param {number} timeLimit - Total time given for the quiz (in seconds)
+   * @param {string} categoryId - Optional ID of the category
    * @returns {Promise<Object>} Object containing calculated XP and new user state
    */
-  async submitScore(userId, correctAnswers, difficulty, timeLeft, timeLimit) {
+  async submitScore(userId, correctAnswers, difficulty, timeLeft, timeLimit, categoryId) {
     // 1. Determine Difficulty Multiplier
     const difficultyMultiplier = DIFFICULTY_MULTIPLIERS[difficulty?.toLowerCase()] || 1;
 
@@ -41,11 +42,16 @@ class ScoreService {
       correctAnswers * BASE_XP_PER_ANSWER * difficultyMultiplier * speedBonus
     );
 
-    // 4. Atomically increment totalXP to prevent race conditions
+    // 4. Atomically increment totalXP and categoryXP to prevent race conditions
+    const updateQuery = { $inc: { totalXP: calculatedXP } };
+    if (categoryId) {
+      updateQuery.$inc[`categoryXP.${categoryId}`] = calculatedXP;
+    }
+
     const user = await User.findByIdAndUpdate(
       userId,
-      { $inc: { totalXP: calculatedXP } },
-      { new: true }
+      updateQuery,
+      { returnDocument: 'after' }
     );
     if (!user) {
       throw new Error('User not found');

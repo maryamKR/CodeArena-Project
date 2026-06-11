@@ -7,14 +7,15 @@ const scoreService = require('../services/scoreService');
  */
 exports.submitScore = async (req, res, next) => {
   try {
-    const { correctAnswers, difficulty, timeLeft, timeLimit } = req.validated.body;
+    const { correctAnswers, difficulty, timeLeft, timeLimit, categoryId } = req.validated.body;
 
     const result = await scoreService.submitScore(
       req.user._id,
       correctAnswers,
       difficulty,
       timeLeft,
-      timeLimit
+      timeLimit,
+      categoryId
     );
 
     res.status(200).json({

@@ -51,6 +51,11 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    categoryXP: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
     badges: {
       type: [String],
       default: [],
