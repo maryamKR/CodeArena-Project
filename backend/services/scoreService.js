@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const History = require('../models/History');
 
 const DIFFICULTY_MULTIPLIERS = {
   easy: 1,
@@ -42,8 +43,8 @@ class ScoreService {
       correctAnswers * BASE_XP_PER_ANSWER * difficultyMultiplier * speedBonus
     );
 
-    // 4. Atomically increment totalXP and categoryXP to prevent race conditions
-    const updateQuery = { $inc: { totalXP: calculatedXP } };
+    // 4. Atomically increment totalXP, quizzesPlayed, and categoryXP to prevent race conditions
+    const updateQuery = { $inc: { totalXP: calculatedXP, quizzesPlayed: 1 } };
     if (categoryId) {
       updateQuery.$inc[`categoryXP.${categoryId}`] = calculatedXP;
     }
@@ -71,9 +72,24 @@ class ScoreService {
       await user.save();
     }
 
+    // 6. Record the history attempt
+    const historyData = {
+      user: userId,
+      correctAnswers,
+      difficulty: difficulty || 'Easy',
+      earnedXP: calculatedXP,
+      timeLeft: timeLeft || 0,
+      timeLimit: timeLimit || 0,
+    };
+    if (categoryId) {
+      historyData.category = categoryId;
+    }
+    await History.create(historyData);
+
     return {
       earnedXP: calculatedXP,
       totalXP: user.totalXP,
+      quizzesPlayed: user.quizzesPlayed,
       rank: user.rank,
       breakdown: {
         correctAnswers,

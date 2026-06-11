@@ -30,6 +30,7 @@ exports.getMe = async (req, res, next) => {
       username: req.user.username,
       email: req.user.email,
       totalXP: req.user.totalXP,
+      quizzesPlayed: req.user.quizzesPlayed,
       badges: req.user.badges,
       rank: req.user.rank,
       isOnline: req.user.isOnline,

@@ -12,6 +12,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const scoreRoutes = require('./routes/scoreRoutes');
 const leaderboardRoutes = require('./routes/leaderboardRoutes');
 const hallOfFameRoutes = require('./routes/hallOfFameRoutes');
+const historyRoutes = require('./routes/historyRoutes');
 
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -69,6 +70,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/scores", scoreRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/hall-of-fame", hallOfFameRoutes);
+app.use("/api/history", historyRoutes);
 
 // Test Route
 app.get("/api/test", (req, res) => {

@@ -51,6 +51,10 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    quizzesPlayed: {
+      type: Number,
+      default: 0,
+    },
     categoryXP: {
       type: Map,
       of: Number,

@@ -109,6 +109,7 @@ Returns the authenticated user's profile. Used for session checks and profile pa
   "username": "testuser",
   "email": "test@example.com",
   "totalXP": 0,
+  "quizzesPlayed": 0,
   "badges": [],
   "rank": "Beginner",
   "isOnline": false,
@@ -336,6 +337,7 @@ Submits quiz results, calculates XP based on performance, and updates the user's
   "data": {
     "earnedXP": 110,
     "totalXP": 610,
+    "quizzesPlayed": 5,
     "rank": "Intermediate",
     "breakdown": {
       "correctAnswers": 8,
@@ -406,6 +408,87 @@ Fetches the top 10 all-time users globally sorted by total XP descending. Return
       "totalXP": 15000,
       "rank": "Master",
       "badges": ["First Blood"]
+    }
+  ]
+}
+```
+
+---
+
+## History Endpoints
+
+### Get User History
+`GET /history/:username`
+
+Fetches a specific user's quiz attempt history.
+**Privacy constraint:** A user can only access their own history. Admins can view any user's history.
+
+**Auth required:** yes
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "user": "...",
+      "category": {
+        "_id": "...",
+        "name": "Frontend",
+        "slug": "frontend",
+        "color": "#e34c26"
+      },
+      "correctAnswers": 8,
+      "difficulty": "Medium",
+      "earnedXP": 110,
+      "timeLeft": 45,
+      "timeLimit": 120,
+      "createdAt": "2023-10-10T14:48:00.000Z"
+    }
+  ]
+}
+```
+
+**Error responses:**
+- `403` — Forbidden: You can only view your own history
+
+---
+
+### Get Global History
+`GET /history`
+
+Fetches a global feed of all quiz attempts.
+
+**Auth required:** yes (Admin only)
+
+**Query params (optional):**
+- `limit` — Maximum number of records to return (default: 50).
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "count": 50,
+  "data": [
+    {
+      "_id": "...",
+      "user": {
+        "_id": "...",
+        "username": "testuser",
+        "rank": "Intermediate",
+        "badges": []
+      },
+      "category": {
+        "_id": "...",
+        "name": "Frontend",
+        "slug": "frontend",
+        "color": "#e34c26"
+      },
+      "correctAnswers": 8,
+      "difficulty": "Medium",
+      "earnedXP": 110,
+      "createdAt": "2023-10-10T14:48:00.000Z"
     }
   ]
 }
