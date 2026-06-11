@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import api from '../API/axios';
+
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
@@ -9,12 +12,6 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-const CATEGORIES = [
-    { id: 'js', label: 'JavaScript', short: 'JS', count: 142, color: '#e6db74' },
-    { id: 'py', label: 'Python', short: 'PY', count: 98, color: '#66d9e8' },
-    { id: 'sql', label: 'SQL', short: 'SQL', count: 76, color: '#f92672' },
-    { id: 'algo', label: 'Algorithms', short: 'AL', count: 54, color: '#a6e22e' },
-];
 
 const LEADERBOARD = [
     { rank: 1, username: 'n00bslayer', xp: 1240, badge: '#1' },
@@ -25,17 +22,30 @@ const LEADERBOARD = [
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 export default function Dashboard() {
+    
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [selectedDifficulty, setSelectedDifficulty] = useState('Easy');
+    
+
+    useEffect(() => {
+        api.get('/categories')
+            .then(res => {
+                setCategories(res.data);
+                setSelectedCategory(res.data[0]?.slug || null);
+            })
+            .catch(() => console.error('Failed to load categories'));
+    }, []);
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
     };
-
     return (
     <div style={styles.page}>
-
       <nav style={styles.nav}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
@@ -70,7 +80,7 @@ export default function Dashboard() {
           <div style={styles.userBadge}>{user?.username || 'player'}</div>
           <button style={styles.logoutBtn} onClick={handleLogout}>logout()</button>
         </div>
-      </nav >
+      </nav>
 
         <div style={styles.content}>
 
@@ -108,45 +118,63 @@ export default function Dashboard() {
                 <div>
                     <div style={styles.sectionTag}>{'// select_category'}</div>
                     <div style={styles.catsGrid}>
-                        {CATEGORIES.map((cat, i) => (
+                        {(categories || []).map((cat, i) => (
                             <div
-                                key={cat.id}
+                                key={cat._id}
                                 style={{
                                     ...styles.catCard,
                                     borderTop: `4px solid ${cat.color}`,
                                     borderRight: i % 2 === 0 ? '3px solid #75715e' : 'none',
                                     borderBottom: i < 2 ? '3px solid #75715e' : 'none',
+                                    background: selectedCategory === cat.slug ? '#3e3d32' : '#2d2c28',
                                 }}
                                 onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
                                 onMouseLeave={e => e.currentTarget.style.background = '#2d2c28'}
-                                onClick={() => navigate('/quiz')}
+                                onClick={() => setSelectedCategory(cat.slug)}
                             >
-                                <div style={{ ...styles.catIcon, color: cat.color }}>{cat.short}</div>
-                                <div style={styles.catName}>{cat.label}</div>
-                                <div style={styles.catCount}>{cat.count} questions</div>
+                                <div style={{ ...styles.catIcon, color: cat.color }}>{cat.slug.substring(0, 2).toUpperCase()}</div>
+                                <div style={styles.catName}>{cat.name}</div>
+                                <div style={styles.catCount}>{cat.slug}</div>
                             </div>
                         ))}
                     </div>
 
-                    <div style={styles.diffRow}>
+                    <div style={{...styles.diffRow, position: 'relative', zIndex: 999}}>
                         <span style={styles.diffLabel}>Difficulty:</span>
-                        {DIFFICULTIES.map((d, i) => (
-                            <button
-                                key={d}
-                                style={{
-                                    ...styles.diffBtn,
-                                    borderRight: i === DIFFICULTIES.length - 1 ? '2px solid #75715e' : 'none',
-                                    ...(i === 0 ? styles.diffBtnActive : {}),
-                                }}
-                            >
-                                {d}
-                            </button>
-                        ))}
+                        {DIFFICULTIES.map((d, i) => {
+                            const isActive = selectedDifficulty === d;
+                            return (
+                                <button
+                                    key={d}
+                                    onClick={() => setSelectedDifficulty(d)}
+                                    style={{
+                                        fontFamily: "'Space Mono', monospace",
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        padding: '5px 14px',
+                                        cursor: 'pointer',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px',
+                                        border: `2px solid ${isActive ? '#f92672' : '#75715e'}`,
+                                        borderRight: i === DIFFICULTIES.length - 1 ? `2px solid ${isActive ? '#f92672' : '#75715e'}` : 'none',
+                                        background: isActive ? '#f92672' : 'transparent',
+                                        color: isActive ? '#f8f8f2' : '#75715e',
+                                    }}
+                                >
+                                    {d}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <button
                         style={styles.startBtn}
-                        onClick={() => navigate('/quiz')}
+                        onClick={() => navigate('/quiz', {
+                            state: {
+                                category: selectedCategory,
+                                difficulty: selectedDifficulty,
+                            }
+                        })}
                         onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
                         onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
                     >
