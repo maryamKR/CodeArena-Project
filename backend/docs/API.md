@@ -365,9 +365,10 @@ Fetches the top users sorted by XP descending.
 
 **Query params (optional):**
 - `category` — slug or ObjectId of the category to filter by (sorts by category-specific XP).
+- `difficulty` — `Easy`, `Medium`, or `Hard` — ranks users by total XP earned exclusively in quizzes of that difficulty (derived from history).
 - `limit` — Maximum number of users to return (default: 10).
 
-**Response `200`:**
+**Response `200` (no difficulty filter):**
 ```json
 {
   "success": true,
@@ -379,6 +380,25 @@ Fetches the top users sorted by XP descending.
       "categoryXP": {
         "60d5ecb8b392d700153c3c12": 5000
       },
+      "rank": "Master",
+      "badges": ["First Blood"],
+      "isOnline": true
+    }
+  ]
+}
+```
+
+**Response `200` (with `?difficulty=Hard`):**
+```json
+{
+  "success": true,
+  "filters": { "difficulty": "Hard", "category": null },
+  "data": [
+    {
+      "_id": "...",
+      "username": "mastercoder",
+      "totalEarnedXP": 9000,
+      "quizzesPlayed": 15,
       "rank": "Master",
       "badges": ["First Blood"],
       "isOnline": true
