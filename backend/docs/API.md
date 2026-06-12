@@ -358,6 +358,30 @@ Submits quiz results, calculates XP based on performance, and updates the user's
 
 ## Leaderboard Endpoints
 
+### Get My Global Rank
+`GET /leaderboard/me`
+
+Fetches the authenticated user's global ranking position, based on their total XP.
+
+**Auth required:** yes
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "globalRank": 8,
+    "totalRanked": 125,
+    "username": "rookie_dev",
+    "totalXP": 150,
+    "rank": "Beginner",
+    "badges": []
+  }
+}
+```
+
+---
+
 ### Get Leaderboard
 `GET /leaderboard`
 
@@ -664,6 +688,74 @@ Returns all pending (non-expired) challenges sent to the authenticated user, new
   ]
 }
 ```
+
+---
+
+---
+
+## Matchmaking Endpoints
+
+### Join Matchmaking Queue
+`POST /matchmaking/join`
+
+Adds the authenticated user to the matchmaking queue. If a compatible opponent (same difficulty) is already waiting, auto-pairs them, creates a new accepted Challenge, and emits a `matched` Socket.IO event to both players.
+
+**Auth required:** yes
+
+**Request body:**
+```json
+{
+  "difficulty": "Easy",
+  "socketId": "xyz123abc..."
+}
+```
+
+**Parameters:**
+- `difficulty` (optional, string) — `Easy`, `Medium`, or `Hard` (default: `Easy`)
+- `socketId` (required, string) — The Socket.IO connection ID of the current player. Used to notify the player if they are matched.
+
+**Response `202` (Queued, waiting for opponent):**
+```json
+{
+  "success": true,
+  "status": "queued",
+  "message": "Joined the matchmaking queue. You will be notified via Socket.IO when an opponent is found."
+}
+```
+
+**Response `200` (Matched immediately with an opponent):**
+```json
+{
+  "success": true,
+  "status": "matched",
+  "challengeId": "3a332864-2ef6-423f-88a6-14f7f7153522",
+  "message": "Opponent found! Navigate to the match."
+}
+```
+
+**Error responses:**
+- `400` — missing `socketId`
+- `409` — already in the matchmaking queue
+
+---
+
+### Leave Matchmaking Queue
+`DELETE /matchmaking/leave`
+
+Removes the authenticated user from the matchmaking queue. Note: users are also automatically removed if their Socket.IO connection drops.
+
+**Auth required:** yes
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "message": "You have left the matchmaking queue."
+}
+```
+
+**Error responses:**
+- `404` — user was not in the queue (or was already matched)
 
 ---
 
