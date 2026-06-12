@@ -759,6 +759,37 @@ Removes the authenticated user from the matchmaking queue. Note: users are also 
 
 ---
 
+### Get Matchmaking Status
+`GET /matchmaking/status`
+
+Returns the current state of the matchmaking queue. Useful for server monitoring or displaying "Players Waiting" stats globally.
+
+**Auth required:** yes (Admin only)
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "playersWaiting": 2,
+  "queue": [
+    {
+      "userId": "6a2a949299dd4fd448a86746",
+      "socketId": "xyz123abc",
+      "difficulty": "Easy",
+      "joinedAt": "2026-06-12T10:00:00.000Z"
+    },
+    {
+      "userId": "6a2a949299dd4fd448a86748",
+      "socketId": "qwe456asd",
+      "difficulty": "Hard",
+      "joinedAt": "2026-06-12T10:01:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
 ## Security Notes
 
 - Passwords are hashed with bcrypt (salt rounds: 10)
