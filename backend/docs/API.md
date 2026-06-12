@@ -353,6 +353,39 @@ Submits quiz results, calculates XP based on performance, and updates the user's
 **Error responses:**
 - `400` — Invalid or missing `correctAnswers`
 - `401` — Not authenticated
+- `404` — `isDailyChallenge: true` but no challenge set for today
+- `409` — `isDailyChallenge: true` but user already completed today's challenge
+
+**Daily challenge score submission (extended body):**
+```json
+{
+  "correctAnswers": 8,
+  "difficulty": "Medium",
+  "timeLeft": 45,
+  "timeLimit": 120,
+  "isDailyChallenge": true
+}
+```
+
+**Response `200` (with daily challenge bonus):**
+```json
+{
+  "success": true,
+  "data": {
+    "earnedXP": 160,
+    "bonusXP": 50,
+    "totalXP": 760,
+    "quizzesPlayed": 6,
+    "rank": "Intermediate",
+    "breakdown": {
+      "correctAnswers": 8,
+      "baseXPPerAnswer": 10,
+      "difficultyMultiplier": 2,
+      "speedBonus": 1.38
+    }
+  },
+  "message": "Score submitted and XP updated successfully"
+}
 
 ---
 
@@ -664,6 +697,84 @@ Returns all pending (non-expired) challenges sent to the authenticated user, new
   ]
 }
 ```
+
+---
+
+## Daily Challenge Endpoints
+
+### Get Today's Challenge
+`GET /api/daily-challenge`
+
+Returns the daily challenge set by an admin for the current UTC day.
+The frontend uses the returned `category.slug` and `difficulty` to call `GET /api/questions` and load 10 matching questions.
+
+**Auth required:** yes — only logged-in users can view and play the daily challenge
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "category": { "_id": "...", "name": "JavaScript", "slug": "js", "color": "#f7df1e" },
+    "difficulty": "Medium",
+    "bonusXP": 50,
+    "activeDate": "2026-06-12",
+    "resetsIn": 22364
+  }
+}
+```
+
+**`resetsIn`** — seconds until the challenge resets at UTC midnight.
+
+**Error responses:**
+- `404` — no daily challenge has been set for today
+
+---
+
+### Set Today's Challenge
+`POST /api/daily-challenge`
+
+Admin-only. Creates or replaces the daily challenge for a given date (defaults to today UTC).
+Can be called again to update the challenge for the same day (upsert).
+
+**Auth required:** yes (Admin only)
+
+**Request body:**
+```json
+{
+  "categoryId": "60d5ecb8b392d700153c3c12",
+  "difficulty": "Medium",
+  "bonusXP": 50,
+  "activeDate": "2026-06-12"
+}
+```
+
+**Parameters:**
+- `categoryId` (required, ObjectId) — ID of the category for the quiz
+- `difficulty` (required, string) — `Easy`, `Medium`, or `Hard`
+- `bonusXP` (required, number) — flat bonus XP awarded on completion (0–10 000)
+- `activeDate` (optional, string) — target date in `YYYY-MM-DD` format; defaults to today UTC
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "category": { "_id": "...", "name": "JavaScript", "slug": "js", "color": "#f7df1e" },
+    "difficulty": "Medium",
+    "bonusXP": 50,
+    "activeDate": "2026-06-12",
+    "createdBy": "..."
+  },
+  "message": "Daily challenge set successfully"
+}
+```
+
+**Error responses:**
+- `403` — not an admin
+- `404` — categoryId does not match any category
 
 ---
 

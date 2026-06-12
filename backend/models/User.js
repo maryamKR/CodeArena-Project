@@ -70,6 +70,12 @@ const UserSchema = new mongoose.Schema(
       enum: USER_RANKS,
       default: "Beginner",
     },
+    // Stores the UTC date (YYYY-MM-DD) when the user last completed the daily challenge.
+    // Compared against today's date to prevent re-submission on the same day.
+    lastDailyChallengeDate: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true },
 );

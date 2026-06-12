@@ -13,17 +13,18 @@ const BASE_XP_PER_ANSWER = 10;
 class ScoreService {
   /**
    * Calculates XP based on quiz performance and updates the user's totalXP.
-   * Formula: correctAnswers * baseXP * difficultyMultiplier * speedBonus
+   * Formula: correctAnswers * baseXP * difficultyMultiplier * speedBonus [+ bonusXP]
    *
-   * @param {string} userId - ID of the user
+   * @param {string} userId       - ID of the user
    * @param {number} correctAnswers - Number of correctly answered questions
-   * @param {string} difficulty - Difficulty of the quiz ('Easy', 'Medium', 'Hard')
-   * @param {number} timeLeft - Remaining time when finished (in seconds)
-   * @param {number} timeLimit - Total time given for the quiz (in seconds)
-   * @param {string} categoryId - Optional ID of the category
+   * @param {string} difficulty   - Difficulty of the quiz ('Easy', 'Medium', 'Hard')
+   * @param {number} timeLeft     - Remaining time when finished (in seconds)
+   * @param {number} timeLimit    - Total time given for the quiz (in seconds)
+   * @param {string} categoryId   - Optional ID of the category
+   * @param {number} bonusXP      - Optional flat bonus from the daily challenge
    * @returns {Promise<Object>} Object containing calculated XP and new user state
    */
-  async submitScore(userId, correctAnswers, difficulty, timeLeft, timeLimit, categoryId) {
+  async submitScore(userId, correctAnswers, difficulty, timeLeft, timeLimit, categoryId, bonusXP = 0) {
     // 1. Determine Difficulty Multiplier
     const difficultyMultiplier = DIFFICULTY_MULTIPLIERS[difficulty?.toLowerCase()] || 1;
 
@@ -33,15 +34,21 @@ class ScoreService {
       speedBonus = 1 + (timeLeft / timeLimit);
     }
 
-    // 3. Calculate XP
-    const calculatedXP = Math.round(
+    // 3. Calculate XP (base quiz XP + optional daily challenge bonus)
+    const baseXP = Math.round(
       correctAnswers * BASE_XP_PER_ANSWER * difficultyMultiplier * speedBonus
     );
+    const calculatedXP = baseXP + (bonusXP > 0 ? bonusXP : 0);
 
-    // 4. Atomically increment totalXP, quizzesPlayed, and categoryXP to prevent race conditions
+    // 4. Atomically increment totalXP, quizzesPlayed, and categoryXP to prevent race conditions.
+    //    If a bonus was applied, also stamp lastDailyChallengeDate (today UTC) to block replays.
+    const todayUTC = new Date().toISOString().slice(0, 10);
     const updateQuery = { $inc: { totalXP: calculatedXP, quizzesPlayed: 1 } };
     if (categoryId) {
       updateQuery.$inc[`categoryXP.${categoryId}`] = calculatedXP;
+    }
+    if (bonusXP > 0) {
+      updateQuery.$set = { lastDailyChallengeDate: todayUTC };
     }
 
     const user = await User.findByIdAndUpdate(
@@ -81,7 +88,7 @@ class ScoreService {
     }
     await History.create(historyData);
 
-    return {
+    const result = {
       earnedXP: calculatedXP,
       totalXP: user.totalXP,
       quizzesPlayed: user.quizzesPlayed,
@@ -93,6 +100,10 @@ class ScoreService {
         speedBonus: parseFloat(speedBonus.toFixed(2)),
       },
     };
+    if (bonusXP > 0) {
+      result.bonusXP = bonusXP;
+    }
+    return result;
   }
 }
 

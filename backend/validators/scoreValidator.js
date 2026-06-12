@@ -7,7 +7,8 @@ const scoreSchema = z.object({
     difficulty: z.enum(DIFFICULTY_LEVELS).optional(),
     timeLeft: z.number().int().min(0).optional(),
     timeLimit: z.number().int().min(1).optional(),
-    categoryId: z.string().regex(OBJECT_ID_REGEX, "Invalid category ID").optional()
+    categoryId: z.string().regex(OBJECT_ID_REGEX, "Invalid category ID").optional(),
+    isDailyChallenge: z.boolean().optional(),
   })
 });
 
