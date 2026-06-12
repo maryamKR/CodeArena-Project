@@ -74,7 +74,8 @@ const initSocket = (server) => {
         await User.findByIdAndUpdate(socket.user._id, { isOnline: false });
         // Remove from matchmaking queue if they were waiting
         matchmakingService.removeBySocketId(socket.id);
-        matchService.handleDisconnect(socket, io);
+        // Handle forfeit if they were mid-match
+        await matchService.handleDisconnect(socket, io);
       } catch (err) {
         console.error('Error updating offline status:', err);
       }

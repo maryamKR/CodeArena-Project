@@ -223,10 +223,63 @@ class MatchService {
   }
 
   /**
-   * Handle unexpected disconnects
+   * Handle unexpected disconnects mid-match.
+   * Awards the win to the remaining player by forfeit.
    */
-  handleDisconnect(socket, io) {
+  async handleDisconnect(socket, io) {
+    // Find if this socket was in any active match
+    for (const [challengeId, matchState] of activeMatches.entries()) {
+      const disconnectedId = Object.keys(matchState.players).find(
+        id => matchState.players[id].socketId === socket.id
+      );
 
+      if (!disconnectedId) continue;
+
+      // Found the match this player was in
+      const winnerId = Object.keys(matchState.players).find(id => id !== disconnectedId);
+
+      // Notify the remaining player
+      if (winnerId) {
+        io.to(challengeId).emit('match_over', {
+          winnerId,
+          forfeit: true,
+          forfeitedBy: disconnectedId,
+          results: {
+            [disconnectedId]: { correctCount: 0, xpEarned: 0, timeTaken: 0 },
+            [winnerId]: {
+              correctCount: matchState.players[winnerId].correctCount,
+              xpEarned: 0, // Will be calculated below
+              timeTaken: matchState.players[winnerId].timeTaken,
+            },
+          },
+        });
+
+        // Award XP to the winner for the questions they already answered
+        try {
+          const { challenge } = matchState;
+          const TIME_LIMIT = 150;
+          const winnerState = matchState.players[winnerId];
+          await scoreService.submitScore(
+            winnerId,
+            winnerState.correctCount,
+            challenge.difficulty,
+            Math.max(0, TIME_LIMIT - winnerState.timeTaken),
+            TIME_LIMIT,
+            challenge.category ? challenge.category._id : null
+          );
+
+          // Mark challenge as completed
+          challenge.status = 'completed';
+          await challenge.save();
+        } catch (err) {
+          console.error('Error saving forfeit result:', err);
+        }
+      }
+
+      // Clean up
+      activeMatches.delete(challengeId);
+      break;
+    }
   }
 }
 
