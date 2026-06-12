@@ -10,14 +10,14 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-const DIFFICULTIES = ['easy', 'medium', 'hard'];
+const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 export default function Quiz() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [mode, setMode] = useState(null);
     const [category, setCategory] = useState(null);
-    const [difficulty, setDifficulty] = useState('easy');
+    const [difficulty, setDifficulty] = useState('Easy');
     const [categories] = useState([
   { slug: 'js',     name: 'JavaScript', short: 'JS',   color: '#e6db74' },
   { slug: 'py',     name: 'Python',     short: 'PY',   color: '#66d9e8' },
