@@ -209,14 +209,18 @@ class MatchService {
     challenge.status = 'completed';
     await challenge.save();
 
-    // Emit final results
-    io.to(challengeId).emit('match_over', {
+    const finalPayload = {
       winnerId,
       results: {
         [senderId]: { correctCount: senderState.correctCount, xpEarned: senderResult.earnedXP, timeTaken: senderState.timeTaken },
         [receiverId]: { correctCount: receiverState.correctCount, xpEarned: receiverResult.earnedXP, timeTaken: receiverState.timeTaken }
       }
-    });
+    };
+
+    console.log('MATCH OVER emitted', finalPayload);
+
+    // Emit final results
+    io.to(challengeId).emit('match_over', finalPayload);
 
     // Clean up memory
     activeMatches.delete(challengeId);
