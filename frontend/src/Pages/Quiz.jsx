@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
@@ -15,19 +16,20 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 export default function Quiz() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [mode, setMode] = useState(null);
+    const location = useLocation();
+    const [mode, setMode] = useState(location.state?.mode || null);
     const [category, setCategory] = useState(null);
     const [difficulty, setDifficulty] = useState('Easy');
     const [categories] = useState([
-  { slug: 'js',     name: 'JavaScript', short: 'JS',   color: '#e6db74' },
-  { slug: 'py',     name: 'Python',     short: 'PY',   color: '#66d9e8' },
-  { slug: 'sql',    name: 'SQL',        short: 'SQL',  color: '#f92672' },
-  { slug: 'algo',   name: 'Algorithms', short: 'AL',   color: '#a6e22e' },
-  { slug: 'react',  name: 'React',      short: 'RE',   color: '#66d9e8' },
-  { slug: 'node',   name: 'Node.js',    short: 'NO',   color: '#a6e22e' },
-  { slug: 'devops', name: 'DevOps',     short: 'DO',   color: '#e6db74' },
-  { slug: 'html',   name: 'HTML/CSS',   short: 'HT',   color: '#f92672' },
-]);
+        { slug: 'js', name: 'JavaScript', short: 'JS', color: '#e6db74' },
+        { slug: 'py', name: 'Python', short: 'PY', color: '#66d9e8' },
+        { slug: 'sql', name: 'SQL', short: 'SQL', color: '#f92672' },
+        { slug: 'algo', name: 'Algorithms', short: 'AL', color: '#a6e22e' },
+        { slug: 'react', name: 'React', short: 'RE', color: '#66d9e8' },
+        { slug: 'node', name: 'Node.js', short: 'NO', color: '#a6e22e' },
+        { slug: 'devops', name: 'DevOps', short: 'DO', color: '#e6db74' },
+        { slug: 'html', name: 'HTML/CSS', short: 'HT', color: '#f92672' },
+    ]);
 
     const handleStart = () => {
         if (!category) return;
