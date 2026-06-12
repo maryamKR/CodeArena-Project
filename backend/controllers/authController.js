@@ -1,10 +1,11 @@
 const authService = require('../services/authService');
+const { TOKEN_EXPIRY_DAYS } = require('../utils/constants');
 
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-  maxAge: 30 * 24 * 60 * 60 * 1000,
+  maxAge: TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
 };
 
 exports.registerUser = async (req, res, next) => {

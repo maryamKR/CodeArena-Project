@@ -28,7 +28,7 @@ app.set('trust proxy', 1);
 // Parse allowed origins from env (comma-separated) with dev defaults
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : ["http://localhost:5173", "http://localhost:3000"];
+  : ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"];
 
 
 // Secure backend HTTP headers with Helmet
@@ -51,7 +51,7 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

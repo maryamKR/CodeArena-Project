@@ -18,6 +18,22 @@ exports.sendChallenge = async (req, res, next) => {
       message
     );
 
+    // Emit real-time notification to the receiver
+    const io = req.app.get('io');
+    if (io) {
+        io.toUser(challenge.receiver._id).emit('challenge_received', {
+            id: challenge.id,
+            sender: {
+                _id: req.user._id,
+                username: req.user.username,
+                rank: req.user.rank
+            },
+            category: challenge.category,
+            difficulty: challenge.difficulty,
+            message: challenge.message
+        });
+    }
+
     res.status(201).json({
       success: true,
       data: challenge,
@@ -39,6 +55,18 @@ exports.acceptChallenge = async (req, res, next) => {
 
     const challenge = await challengeService.acceptChallenge(id, req.user._id);
 
+    // Emit real-time notification to the sender
+    const io = req.app.get('io');
+    if (io) {
+        io.toUser(challenge.sender._id).emit('challenge_accepted', {
+            id: challenge.id,
+            receiver: {
+                _id: req.user._id,
+                username: req.user.username
+            }
+        });
+    }
+
     res.status(200).json({
       success: true,
       data: challenge,
@@ -59,6 +87,18 @@ exports.declineChallenge = async (req, res, next) => {
     const { id } = req.validated.params;
 
     const challenge = await challengeService.declineChallenge(id, req.user._id);
+
+    // Emit real-time notification to the sender
+    const io = req.app.get('io');
+    if (io) {
+        io.toUser(challenge.sender._id).emit('challenge_declined', {
+            id: challenge.id,
+            receiver: {
+                _id: req.user._id,
+                username: req.user.username
+            }
+        });
+    }
 
     res.status(200).json({
       success: true,

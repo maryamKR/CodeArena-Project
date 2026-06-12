@@ -6,19 +6,20 @@ const crypto = require("crypto");
 exports.register = async (userData) => {
   const { username, email, password } = userData;
 
-  const userExists = await User.findOne({ $or: [{ email }, { username }] });
-  if (userExists)
-    throw new Error("User with this email or username already exists");
-
   const user = await User.create({ username, email, password });
-
-
 
   return {
     user: {
       _id: user._id,
       username: user.username,
       email: user.email,
+      totalXP: user.totalXP,
+      quizzesPlayed: user.quizzesPlayed,
+      badges: user.badges,
+      rank: user.rank,
+      isOnline: user.isOnline,
+      role: user.role,
+      createdAt: user.createdAt,
     },
     token: generateToken(user._id),
   };
@@ -37,6 +38,13 @@ exports.login = async (email, password) => {
       _id: user._id,
       username: user.username,
       email: user.email,
+      totalXP: user.totalXP,
+      quizzesPlayed: user.quizzesPlayed,
+      badges: user.badges,
+      rank: user.rank,
+      isOnline: user.isOnline,
+      role: user.role,
+      createdAt: user.createdAt,
     },
     token: generateToken(user._id),
   };

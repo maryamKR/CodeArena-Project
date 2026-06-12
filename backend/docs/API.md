@@ -187,7 +187,7 @@ Resets the user's password using the token from the reset email. Token expires i
 ### Get Quiz Questions
 `GET /questions`
 
-Fetches a random sample of up to 10 questions for a quiz.
+Fetches a random sample of up to 10 questions for a quiz. **Note:** The `correct_answer` field is stripped from the response for security.
 
 **Query params (optional):**
 - `category` — slug of the category to filter by
@@ -200,11 +200,38 @@ Fetches a random sample of up to 10 questions for a quiz.
   {
     "_id": "...",
     "text": "What does HTML stand for?",
-    "correct_answer": true,
     "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#ff0000" },
     "difficulty": "Easy"
   }
 ]
+```
+
+---
+
+### Check Answer
+`POST /questions/:id/check`
+
+Verifies if a selected answer for a specific question is correct.
+
+**Auth required:** yes
+
+**URL params:**
+- `id` — ObjectId of the question
+
+**Request body:**
+```json
+{
+  "selectedAnswer": true
+}
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "correct": true,
+  "correctAnswer": true
+}
 ```
 
 ---
@@ -310,14 +337,17 @@ Creates a new category. Fails if the slug is already in use.
 ### Submit Quiz Score
 `POST /scores`
 
-Submits quiz results, calculates XP based on performance, and updates the user's total XP and rank.
+Submits quiz results, calculates XP based on performance, and updates the user's total XP and rank. Score calculation is performed server-side for security.
 
 **Auth required:** yes
 
 **Request body:**
 ```json
 {
-  "correctAnswers": 8,
+  "answers": [
+    { "questionId": "60d5ecb8b392d700153c3c12", "selectedAnswer": true },
+    { "questionId": "60d5ecb8b392d700153c3c13", "selectedAnswer": false }
+  ],
   "difficulty": "Medium",
   "timeLeft": 45,
   "timeLimit": 120
@@ -325,10 +355,12 @@ Submits quiz results, calculates XP based on performance, and updates the user's
 ```
 
 **Parameters:**
-- `correctAnswers` (required, number): Number of correct answers.
+- `answers` (required, array): Array of objects containing `questionId` and the user's `selectedAnswer` (boolean).
 - `difficulty` (optional, string): Quiz difficulty (`Easy`, `Medium`, `Hard`). Defaults to `Easy` multiplier.
 - `timeLeft` (optional, number): Seconds remaining when quiz was finished.
 - `timeLimit` (optional, number): Total time limit for the quiz in seconds.
+- `categoryId` (optional, string): ID of the category played.
+- `isDailyChallenge` (optional, boolean): Flag for daily challenge submissions.
 
 **Response `200`:**
 ```json
@@ -351,7 +383,7 @@ Submits quiz results, calculates XP based on performance, and updates the user's
 ```
 
 **Error responses:**
-- `400` — Invalid or missing `correctAnswers`
+- `400` — Invalid or missing `answers`
 - `401` — Not authenticated
 - `404` — `isDailyChallenge: true` but no challenge set for today
 - `409` — `isDailyChallenge: true` but user already completed today's challenge
@@ -359,33 +391,13 @@ Submits quiz results, calculates XP based on performance, and updates the user's
 **Daily challenge score submission (extended body):**
 ```json
 {
-  "correctAnswers": 8,
+  "answers": [...],
   "difficulty": "Medium",
   "timeLeft": 45,
   "timeLimit": 120,
   "isDailyChallenge": true
 }
 ```
-
-**Response `200` (with daily challenge bonus):**
-```json
-{
-  "success": true,
-  "data": {
-    "earnedXP": 160,
-    "bonusXP": 50,
-    "totalXP": 760,
-    "quizzesPlayed": 6,
-    "rank": "Intermediate",
-    "breakdown": {
-      "correctAnswers": 8,
-      "baseXPPerAnswer": 10,
-      "difficultyMultiplier": 2,
-      "speedBonus": 1.38
-    }
-  },
-  "message": "Score submitted and XP updated successfully"
-}
 
 ---
 
@@ -437,25 +449,6 @@ Fetches the top users sorted by XP descending.
       "categoryXP": {
         "60d5ecb8b392d700153c3c12": 5000
       },
-      "rank": "Master",
-      "badges": ["First Blood"],
-      "isOnline": true
-    }
-  ]
-}
-```
-
-**Response `200` (with `?difficulty=Hard`):**
-```json
-{
-  "success": true,
-  "filters": { "difficulty": "Hard", "category": null },
-  "data": [
-    {
-      "_id": "...",
-      "username": "mastercoder",
-      "totalEarnedXP": 9000,
-      "quizzesPlayed": 15,
       "rank": "Master",
       "badges": ["First Blood"],
       "isOnline": true
@@ -727,10 +720,10 @@ Returns all pending (non-expired) challenges sent to the authenticated user, new
 ## Daily Challenge Endpoints
 
 ### Get Today's Challenge
-`GET /api/daily-challenge`
+`GET /daily-challenge`
 
 Returns the daily challenge set by an admin for the current UTC day.
-The frontend uses the returned `category.slug` and `difficulty` to call `GET /api/questions` and load 10 matching questions.
+The frontend uses the returned `category.slug` and `difficulty` to call `GET /questions` and load 10 matching questions.
 
 **Auth required:** yes — only logged-in users can view and play the daily challenge
 
@@ -757,7 +750,7 @@ The frontend uses the returned `category.slug` and `difficulty` to call `GET /ap
 ---
 
 ### Set Today's Challenge
-`POST /api/daily-challenge`
+`POST /daily-challenge`
 
 Admin-only. Creates or replaces the daily challenge for a given date (defaults to today UTC).
 Can be called again to update the challenge for the same day (upsert).
@@ -896,6 +889,48 @@ Returns the current state of the matchmaking queue. Useful for server monitoring
   ]
 }
 ```
+
+---
+
+## Socket.IO Events
+
+The backend uses Socket.IO for real-time notifications and multiplayer matches. All socket connections require authentication via the same JWT cookie used for REST.
+
+### Connection
+- **Event:** `connected`
+- **Data:** `{ socketId, userId, email }`
+- **Purpose:** Sent by server immediately after successful connection/auth.
+
+### Matchmaking & 1v1 Matches
+- **Event:** `matched`
+- **Data:** `{ challengeId, opponent: { userId, username, rank }, message }`
+- **Purpose:** Sent when an opponent is found in the queue.
+- **Action:** Frontend should navigate to `/match/:challengeId`.
+
+- **Event:** `match_ready`
+- **Data:** `{ questions: [...] }`
+- **Purpose:** Sent when both players have joined the match room. Questions have `correct_answer` stripped.
+
+- **Event:** `opponent_progress`
+- **Data:** `{ userId, questionsAnswered, totalQuestions }`
+- **Purpose:** Broadcasted when either player submits an answer.
+
+- **Event:** `match_over`
+- **Data:** `{ winnerId, results: { [userId]: { correctCount, xpEarned, timeTaken } }, forfeit: boolean }`
+- **Purpose:** Sent when the match ends or someone disconnects mid-match.
+
+### Real-Time Notifications
+- **Event:** `challenge_received`
+- **Data:** `{ id, sender: { _id, username, rank }, category, difficulty, message }`
+- **Purpose:** Sent to a user in real-time when another player challenges them directly.
+
+- **Event:** `challenge_accepted`
+- **Data:** `{ id, receiver: { _id, username } }`
+- **Purpose:** Sent to the challenger when their request is accepted.
+
+- **Event:** `challenge_declined`
+- **Data:** `{ id, receiver: { _id, username } }`
+- **Purpose:** Sent to the challenger when their request is declined.
 
 ---
 

@@ -22,12 +22,23 @@ class ScoreService {
     if (categoryId) {
       updateQuery.$inc[`categoryXP.${categoryId}`] = calculatedXP;
     }
+    let user;
     if (bonusXP > 0) {
       updateQuery.$set = { lastDailyChallengeDate: todayUTC };
+      user = await User.findOneAndUpdate(
+        { _id: userId, lastDailyChallengeDate: { $ne: todayUTC } },
+        updateQuery,
+        { returnDocument: 'after' }
+      );
+      if (!user) {
+        const err = new Error("You have already completed today's daily challenge");
+        err.statusCode = 409;
+        throw err;
+      }
+    } else {
+      user = await User.findByIdAndUpdate(userId, updateQuery, { returnDocument: 'after' });
+      if (!user) throw new Error('User not found');
     }
-
-    const user = await User.findByIdAndUpdate(userId, updateQuery, { returnDocument: 'after' });
-    if (!user) throw new Error('User not found');
 
     let newRank = 'Beginner';
     for (const { minXP, rank } of RANK_THRESHOLDS) {

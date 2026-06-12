@@ -1,5 +1,6 @@
 const scoreService = require('../services/scoreService');
 const dailyChallengeService = require('../services/dailyChallengeService');
+const Question = require('../models/Question');
 
 /**
  * @desc    Submit a quiz score and calculate XP
@@ -8,17 +9,24 @@ const dailyChallengeService = require('../services/dailyChallengeService');
  */
 exports.submitScore = async (req, res, next) => {
   try {
-    const { correctAnswers, difficulty, timeLeft, timeLimit, categoryId, isDailyChallenge } = req.validated.body;
+    const { answers, difficulty, timeLeft, timeLimit, categoryId, isDailyChallenge } = req.validated.body;
+
+    // Fetch the correct answers from the database for the submitted questions
+    const questionIds = answers.map(a => a.questionId);
+    const questions = await Question.find({ _id: { $in: questionIds } });
+
+    let correctAnswers = 0;
+    for (const submission of answers) {
+      const dbQuestion = questions.find(q => q._id.toString() === submission.questionId);
+      if (dbQuestion && dbQuestion.correct_answer === submission.selectedAnswer) {
+        correctAnswers++;
+      }
+    }
 
     let bonusXP = 0;
 
     if (isDailyChallenge) {
       const todayUTC = new Date().toISOString().slice(0, 10);
-      if (req.user.lastDailyChallengeDate === todayUTC) {
-        const error = new Error("You have already completed today's daily challenge");
-        error.statusCode = 409;
-        return next(error);
-      }
       bonusXP = await dailyChallengeService.getTodayBonusXP();
     }
 

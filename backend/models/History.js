@@ -40,4 +40,6 @@ const HistorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+HistorySchema.index({ user: 1, createdAt: -1 });
+
 module.exports = mongoose.model("History", HistorySchema);

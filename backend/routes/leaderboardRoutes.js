@@ -8,7 +8,7 @@ const { leaderboardSchema } = require('../validators/leaderboardValidator');
 // User: Get own global rank (must be BEFORE the /:param routes to avoid conflicts)
 router.get('/me', protect, getMyRank);
 
-// User: Get Leaderboard
-router.get('/', validate(leaderboardSchema), getLeaderboard);
+// Protected: Get Leaderboard
+router.get('/', protect, validate(leaderboardSchema), getLeaderboard);
 
 module.exports = router;

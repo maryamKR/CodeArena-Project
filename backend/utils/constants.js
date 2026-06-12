@@ -7,7 +7,10 @@ const RANK_THRESHOLDS = [
   { minXP: 10000, rank: 'Master' },
   { minXP: 5000, rank: 'Advanced' },
   { minXP: 1000, rank: 'Intermediate' },
+  { minXP: 0, rank: 'Beginner' },
 ];
+
+const TOKEN_EXPIRY_DAYS = 30;
 
 module.exports = {
   OBJECT_ID_REGEX,
@@ -16,4 +19,5 @@ module.exports = {
   CHALLENGE_STATUSES,
   USER_RANKS,
   RANK_THRESHOLDS,
+  TOKEN_EXPIRY_DAYS,
 };

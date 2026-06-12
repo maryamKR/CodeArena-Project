@@ -42,7 +42,4 @@ const DailyChallengeSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// Fast look-up by date
-DailyChallengeSchema.index({ activeDate: 1 });
-
 module.exports = mongoose.model('DailyChallenge', DailyChallengeSchema);

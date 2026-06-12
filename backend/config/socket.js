@@ -5,15 +5,18 @@ const User = require('../models/User');
 const matchService = require('../services/matchService');
 const matchmakingService = require('../services/matchmakingService');
 
+// Global map to track online users and their socket IDs for targeted notifications
+// Map<userId, socketId>
+const onlineUsers = new Map();
+
 const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
       origin: function (origin, callback) {
-        const allowedOrigins = [
-          'http://localhost:3000',
-          'http://127.0.0.1:3000',
-          process.env.CLIENT_URL,
-        ];
+        const allowedOrigins = process.env.ALLOWED_ORIGINS
+          ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+          : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://127.0.0.1:3000'];
+
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
@@ -65,9 +68,15 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
+    const userId = socket.user._id.toString();
+
+    // 0. Map the user to their socket ID
+    onlineUsers.set(userId, socket.id);
+
     // 0. Emit a success event with the connection details (helpful for debugging and UI)
     console.log('CONNECTED', {
       socketId: socket.id,
+      userId: userId,
       email: socket.user.email
     });
 
@@ -105,6 +114,11 @@ const initSocket = (server) => {
     // 3. Handle disconnect
     socket.on('disconnect', async () => {
       try {
+        // Remove from global mapping
+        if (onlineUsers.get(userId) === socket.id) {
+          onlineUsers.delete(userId);
+        }
+
         await User.findByIdAndUpdate(socket.user._id, { isOnline: false });
         // Remove from matchmaking queue if they were waiting
         matchmakingService.removeBySocketId(socket.id);
@@ -115,6 +129,12 @@ const initSocket = (server) => {
       }
     });
   });
+
+  // Attach a helper to io for targeted emissions
+  io.toUser = (userId) => {
+    const socketId = onlineUsers.get(userId.toString());
+    return socketId ? io.to(socketId) : { emit: () => {} }; // Return a mock emit if offline
+  };
 
   return io;
 };

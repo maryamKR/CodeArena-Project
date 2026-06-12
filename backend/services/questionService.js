@@ -35,6 +35,7 @@ class QuestionService {
     const questions = await Question.aggregate([
       { $match: matchQuery },
       { $sample: { size: 10 } },
+      { $project: { correct_answer: 0 } },
     ]);
 
     // 5. Populate Category field

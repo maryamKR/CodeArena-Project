@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { getTodayChallenge, setTodayChallenge } = require('../controllers/dailyChallengeController');
-const { protect } = require('../middlewares/authMiddleware');
-const { isAdmin } = require('../middlewares/adminMiddleware');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 const validate = require('../middlewares/validate');
 const { setDailyChallengeSchema } = require('../validators/dailyChallengeValidator');
 
@@ -11,6 +10,6 @@ const { setDailyChallengeSchema } = require('../validators/dailyChallengeValidat
 router.get('/', protect, getTodayChallenge);
 
 // Admin only — set or update the daily challenge
-router.post('/', protect, isAdmin, validate(setDailyChallengeSchema), setTodayChallenge);
+router.post('/', protect, authorize('admin'), validate(setDailyChallengeSchema), setTodayChallenge);
 
 module.exports = router;

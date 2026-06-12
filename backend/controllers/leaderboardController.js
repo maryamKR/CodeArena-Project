@@ -22,7 +22,9 @@ exports.getLeaderboard = async (req, res, next) => {
         } else {
           const categoryDoc = await Category.findOne({ slug: category });
           if (!categoryDoc) {
-            return res.status(404).json({ success: false, message: 'Category not found' });
+            const err = new Error('Category not found');
+            err.statusCode = 404;
+            return next(err);
           }
           categoryId = categoryDoc._id;
         }
@@ -66,7 +68,9 @@ exports.getLeaderboard = async (req, res, next) => {
       } else {
         const categoryDoc = await Category.findOne({ slug: category });
         if (!categoryDoc) {
-          return res.status(404).json({ success: false, message: 'Category not found' });
+          const err = new Error('Category not found');
+          err.statusCode = 404;
+          return next(err);
         }
         categoryId = categoryDoc._id.toString();
       }

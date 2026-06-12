@@ -1,21 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const questionController = require('../controllers/questionController');
-const { protect } = require('../middlewares/authMiddleware');
-const { isAdmin } = require('../middlewares/adminMiddleware');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 const validate = require('../middlewares/validate');
-const { questionSchema, quizQuerySchema } = require('../validators/questionValidator');
+const { questionSchema, quizQuerySchema, checkAnswerSchema } = require('../validators/questionValidator');
 
-// Public: Get quiz questions
-router.get('/', validate(quizQuerySchema), questionController.getQuiz);
+// Protected: Get quiz questions
+router.get('/', protect, validate(quizQuerySchema), questionController.getQuiz);
 
-
+// Protected: Check individual question answer
+router.post(
+  '/:id/check',
+  protect,
+  validate(checkAnswerSchema),
+  questionController.checkAnswer
+);
 
 // Admin: Add a question
 router.post(
   '/', 
   protect, 
-  isAdmin, 
+  authorize('admin'), 
   validate(questionSchema), 
   questionController.addQuestion
 );
@@ -24,7 +29,7 @@ router.post(
 router.delete(
   '/:id', 
   protect, 
-  isAdmin, 
+  authorize('admin'), 
   questionController.deleteQuestion
 );
 

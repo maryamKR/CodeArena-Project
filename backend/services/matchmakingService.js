@@ -58,12 +58,12 @@ class MatchmakingService {
     if (io) {
       io.to(opponent.socketId).emit('matched', {
         challengeId,
-        opponent: { username: user.username, rank: user.rank },
+        opponent: { userId: user._id.toString(), username: user.username, rank: user.rank },
         message: 'Opponent found! Get ready.',
       });
       io.to(socketId).emit('matched', {
         challengeId,
-        opponent: { username: opponent.username, rank: opponent.rank },
+        opponent: { userId: opponent.userId, username: opponent.username, rank: opponent.rank },
         message: 'Opponent found! Get ready.',
       });
     }

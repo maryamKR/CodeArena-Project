@@ -13,7 +13,7 @@ class MatchService {
    */
   async joinMatch(challengeId, userId, socket, io) {
     try {
-      console.log(`User ${userId} joining match ${challengeId}`);
+      if (process.env.NODE_ENV !== 'production') console.log(`User ${userId} joining match ${challengeId}`);
       // 1. Verify the challenge
       const challenge = await Challenge.findOne({ challengeId }).populate('sender receiver category');
 
@@ -59,8 +59,8 @@ class MatchService {
     io.to(challengeId).emit('player_joined', { userId });
 
     // 6. Check if both are ready
-    const players = Object.values(matchState.players);
-      console.log(`Players ready count: ${players.filter(p => p.ready).length}`);
+      const players = Object.values(matchState.players);
+      if (process.env.NODE_ENV !== 'production') console.log(`Players ready count: ${players.filter(p => p.ready).length}`);
       if (players.length === 2 && players.every(p => p.ready)) {
         await this.startMatch(challengeId, io);
       }
@@ -75,7 +75,7 @@ class MatchService {
    */
   async startMatch(challengeId, io) {
     try {
-      console.log(`Starting match for ${challengeId}`);
+      if (process.env.NODE_ENV !== 'production') console.log(`Starting match for ${challengeId}`);
       const matchState = activeMatches.get(challengeId);
     const { challenge } = matchState;
 
@@ -111,7 +111,7 @@ class MatchService {
     }));
 
       // Emit the sanitized questions to both players to start the match
-      console.log(`Emitting match_ready to room ${challengeId}`);
+      if (process.env.NODE_ENV !== 'production') console.log(`Emitting match_ready to room ${challengeId}`);
       io.to(challengeId).emit('match_ready', { questions: sanitizedQuestions });
     } catch (error) {
       console.error('Error in startMatch:', error);
@@ -217,7 +217,7 @@ class MatchService {
       }
     };
 
-    console.log('MATCH OVER emitted', finalPayload);
+    if (process.env.NODE_ENV !== 'production') console.log('MATCH OVER emitted', finalPayload);
 
     // Emit final results
     io.to(challengeId).emit('match_over', finalPayload);
@@ -246,6 +246,29 @@ class MatchService {
       if (matchState.questions && matchState.questions.length > 0) {
         // Notify the remaining player
         if (winnerId) {
+          // Award XP to the winner for the questions they already answered
+          let winnerXP = 0;
+          try {
+            const { challenge } = matchState;
+            const TIME_LIMIT = 150;
+            const winnerState = matchState.players[winnerId];
+            const scoreResult = await scoreService.submitScore(
+              winnerId,
+              winnerState.correctCount,
+              challenge.difficulty,
+              Math.max(0, TIME_LIMIT - winnerState.timeTaken),
+              TIME_LIMIT,
+              challenge.category ? challenge.category._id : null
+            );
+            winnerXP = scoreResult.earnedXP;
+
+            // Mark challenge as completed
+            challenge.status = 'completed';
+            await challenge.save();
+          } catch (err) {
+            console.error('Error saving forfeit result:', err);
+          }
+
           io.to(challengeId).emit('match_over', {
             winnerId,
             forfeit: true,
@@ -254,32 +277,11 @@ class MatchService {
               [disconnectedId]: { correctCount: 0, xpEarned: 0, timeTaken: 0 },
               [winnerId]: {
                 correctCount: matchState.players[winnerId].correctCount,
-                xpEarned: 0, // Will be calculated below
+                xpEarned: winnerXP,
                 timeTaken: matchState.players[winnerId].timeTaken,
               },
             },
           });
-
-          // Award XP to the winner for the questions they already answered
-          try {
-            const { challenge } = matchState;
-            const TIME_LIMIT = 150;
-            const winnerState = matchState.players[winnerId];
-            await scoreService.submitScore(
-              winnerId,
-              winnerState.correctCount,
-              challenge.difficulty,
-              Math.max(0, TIME_LIMIT - winnerState.timeTaken),
-              TIME_LIMIT,
-              challenge.category ? challenge.category._id : null
-            );
-
-            // Mark challenge as completed
-            challenge.status = 'completed';
-            await challenge.save();
-          } catch (err) {
-            console.error('Error saving forfeit result:', err);
-          }
         }
       } else {
         // Match was still in the lobby phase (waiting for both players to join)
