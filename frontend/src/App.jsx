@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './Context/AuthContext';
 import ProtectedRoute from './Routes/ProtectedRoute';
 import Navbar from './Components/Navbar';
-
+import QuizPlay from './Pages/QuizPlay';
 import Home from './Pages/Home';
 import Login from './Pages/Login';
 import Register from './Pages/Register';
@@ -39,6 +39,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/challenge" element={<Challenge />} />
             <Route path="/matchmaking" element={<Matchmaking />} />
+            <Route path="/quiz/play" element={<QuizPlay />} />
             
           </Route>
         </Routes>
