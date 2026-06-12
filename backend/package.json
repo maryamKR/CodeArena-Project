@@ -13,6 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -23,10 +24,13 @@
     "mongodb": "^7.2.0",
     "mongoose": "^9.6.2",
     "sib-api-v3-sdk": "^8.5.0",
+    "socket.io": "^4.8.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "axios": "^1.17.0",
     "mongodb-memory-server": "^11.2.0",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "socket.io-client": "^4.8.3"
   }
 }
