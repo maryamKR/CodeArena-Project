@@ -28,8 +28,8 @@ export default function HallOfFame() {
         const fetchHallOfFame = async () => {
             setLoading(true);
             try {
-                const res = await api.get('/api/hall-of-fame');
-                setPlayers(Array.isArray(res.data) ? res.data : res.data.players || []);
+                const res = await api.get('/hall-of-fame');
+                setPlayers(res.data.data || []);
             } catch {
                 setError('Failed to load Hall of Fame');
             } finally {

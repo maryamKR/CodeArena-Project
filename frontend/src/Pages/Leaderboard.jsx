@@ -31,7 +31,7 @@ export default function Leaderboard() {
                 if (category !== 'All') params.category = category;
                 if (difficulty !== 'All') params.difficulty = difficulty;
                 const res = await api.get('/leaderboard', { params });
-                setPlayers(Array.isArray(res.data) ? res.data : res.data.players || []);
+                setPlayers(res.data.data || []);
             } catch {
                 setError('Failed to load leaderboard');
             } finally {
