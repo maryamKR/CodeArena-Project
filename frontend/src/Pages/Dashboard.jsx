@@ -22,14 +22,14 @@ const LEADERBOARD = [
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 export default function Dashboard() {
-    
+
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedDifficulty, setSelectedDifficulty] = useState('Easy');
-    
+
 
     useEffect(() => {
         api.get('/categories')
@@ -45,168 +45,168 @@ export default function Dashboard() {
         navigate('/login');
     };
     return (
-    <div style={styles.page}>
-      <nav style={styles.nav}>
-        <div style={styles.logo}>
-          <span style={styles.bracket}>[</span>
-          <span style={styles.logoName}>CODE</span>
-          <span style={styles.bracket}>]</span>
-          {' '}ARENA
-        </div>
-        <div style={styles.navLinks}>
-          {NAV_LINKS.map((link, i) => (
-            <a
-            
-              key={link.label}
-              onClick={() => navigate(link.path)}
-              style={{
-                ...styles.navLink,
-                ...(i === 1 ? styles.navLinkActive : {}),
-                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
-                cursor: 'pointer',
-              }}
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
-        <div style={styles.navRight}>
-          <div style={styles.xpBadge}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-            </svg>
-            {user?.totalXP || 0} XP
-          </div>
-          <div style={styles.userBadge}>{user?.username || 'player'}</div>
-          <button style={styles.logoutBtn} onClick={handleLogout}>logout()</button>
-        </div>
-      </nav>
-
-        <div style={styles.content}>
-
-            <div style={styles.welcomeRow}>
-                <div>
-                    <div style={styles.welcomeTag}>{'// welcome_back'}</div>
-                    <h1 style={styles.welcomeTitle}>
-                        <span style={styles.kw}>const</span> player{' '}
-                        <span style={styles.op}>=</span>{' '}
-                        <span style={styles.str}>"{user?.username || 'coder'}"</span>
-                    </h1>
+        <div style={styles.page}>
+            <nav style={styles.nav}>
+                <div style={styles.logo}>
+                    <span style={styles.bracket}>[</span>
+                    <span style={styles.logoName}>CODE</span>
+                    <span style={styles.bracket}>]</span>
+                    {' '}ARENA
                 </div>
-                <div style={styles.rankBadge}>
-                    <div style={styles.rankLabel}>RANK</div>
-                    <div style={styles.rankVal}>{user?.rank || 'Beginner'}</div>
+                <div style={styles.navLinks}>
+                    {NAV_LINKS.map((link, i) => (
+                        <a
+
+                            key={link.label}
+                            onClick={() => navigate(link.path)}
+                            style={{
+                                ...styles.navLink,
+                                ...(i === 1 ? styles.navLinkActive : {}),
+                                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {link.label}
+                        </a>
+                    ))}
                 </div>
-            </div>
-
-            <div style={styles.statsRow}>
-                {[
-                    { label: 'Total XP', val: user?.totalXP || 0, color: '#e6db74' },
-                    { label: 'Quizzes Played', val: user?.quizzesPlayed || 0, color: '#a6e22e' },
-                    { label: 'Global Rank', val: `#${user?.globalRank || '-'}`, color: '#66d9e8' },
-                    { label: 'Badges', val: user?.badges?.length || 0, color: '#f92672' },
-                ].map((stat, i) => (
-                    <div key={stat.label} style={{ ...styles.statCard, borderRight: i < 3 ? '3px solid #75715e' : 'none' }}>
-                        <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
-                        <div style={styles.statLabel}>{stat.label}</div>
+                <div style={styles.navRight}>
+                    <div style={styles.xpBadge}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        {user?.totalXP || 0} XP
                     </div>
-                ))}
-            </div>
+                    <div style={styles.userBadge}>{user?.username || 'player'}</div>
+                    <button style={styles.logoutBtn} onClick={handleLogout}>logout()</button>
+                </div>
+            </nav>
 
-            <div style={styles.mainGrid}>
+            <div style={styles.content}>
 
-                <div>
-                    <div style={styles.sectionTag}>{'// select_category'}</div>
-                    <div style={styles.catsGrid}>
-                        {(categories || []).map((cat, i) => (
-                            <div
-                                key={cat._id}
-                                style={{
-                                    ...styles.catCard,
-                                    borderTop: `4px solid ${cat.color}`,
-                                    borderRight: i % 2 === 0 ? '3px solid #75715e' : 'none',
-                                    borderBottom: i < 2 ? '3px solid #75715e' : 'none',
-                                    background: selectedCategory === cat.slug ? '#3e3d32' : '#2d2c28',
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#2d2c28'}
-                                onClick={() => setSelectedCategory(cat.slug)}
-                            >
-                                <div style={{ ...styles.catIcon, color: cat.color }}>{cat.slug.substring(0, 2).toUpperCase()}</div>
-                                <div style={styles.catName}>{cat.name}</div>
-                                <div style={styles.catCount}>{cat.slug}</div>
-                            </div>
-                        ))}
+                <div style={styles.welcomeRow}>
+                    <div>
+                        <div style={styles.welcomeTag}>{'// welcome_back'}</div>
+                        <h1 style={styles.welcomeTitle}>
+                            <span style={styles.kw}>const</span> player{' '}
+                            <span style={styles.op}>=</span>{' '}
+                            <span style={styles.str}>"{user?.username || 'coder'}"</span>
+                        </h1>
                     </div>
+                    <div style={styles.rankBadge}>
+                        <div style={styles.rankLabel}>RANK</div>
+                        <div style={styles.rankVal}>{user?.rank || 'Beginner'}</div>
+                    </div>
+                </div>
 
-                    <div style={{...styles.diffRow, position: 'relative', zIndex: 999}}>
-                        <span style={styles.diffLabel}>Difficulty:</span>
-                        {DIFFICULTIES.map((d, i) => {
-                            const isActive = selectedDifficulty === d;
-                            return (
-                                <button
-                                    key={d}
-                                    onClick={() => setSelectedDifficulty(d)}
+                <div style={styles.statsRow}>
+                    {[
+                        { label: 'Total XP', val: user?.totalXP || 0, color: '#e6db74' },
+                        { label: 'Quizzes Played', val: user?.quizzesPlayed || 0, color: '#a6e22e' },
+                        { label: 'Global Rank', val: `#${user?.globalRank || '-'}`, color: '#66d9e8' },
+                        { label: 'Badges', val: user?.badges?.length || 0, color: '#f92672' },
+                    ].map((stat, i) => (
+                        <div key={stat.label} style={{ ...styles.statCard, borderRight: i < 3 ? '3px solid #75715e' : 'none' }}>
+                            <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
+                            <div style={styles.statLabel}>{stat.label}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <div style={styles.mainGrid}>
+
+                    <div>
+                        <div style={styles.sectionTag}>{'// select_category'}</div>
+                        <div style={styles.catsGrid}>
+                            {(categories || []).map((cat, i) => (
+                                <div
+                                    key={cat._id}
                                     style={{
-                                        fontFamily: "'Space Mono', monospace",
-                                        fontSize: '11px',
-                                        fontWeight: 700,
-                                        padding: '5px 14px',
-                                        cursor: 'pointer',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '1px',
-                                        border: `2px solid ${isActive ? '#f92672' : '#75715e'}`,
-                                        borderRight: i === DIFFICULTIES.length - 1 ? `2px solid ${isActive ? '#f92672' : '#75715e'}` : 'none',
-                                        background: isActive ? '#f92672' : 'transparent',
-                                        color: isActive ? '#f8f8f2' : '#75715e',
+                                        ...styles.catCard,
+                                        borderTop: `4px solid ${cat.color}`,
+                                        borderRight: (i + 1) % 4 !== 0 ? '3px solid #75715e' : 'none',
+                                        borderBottom: '3px solid #75715e',
+                                        background: selectedCategory === cat.slug ? '#3e3d32' : '#2d2c28',
                                     }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#2d2c28'}
+                                    onClick={() => setSelectedCategory(cat.slug)}
                                 >
-                                    {d}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <button
-                        style={styles.startBtn}
-                        onClick={() => navigate('/quiz', {
-                            state: {
-                                category: selectedCategory,
-                                difficulty: selectedDifficulty,
-                            }
-                        })}
-                        onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
-                    >
-                        ▶ START QUIZ
-                    </button>
-                </div>
-
-                <div>
-                    <div style={styles.sectionTag}>{'// top_players'}</div>
-                    <div style={styles.leaderCard}>
-                        {LEADERBOARD.map((p, i) => (
-                            <div key={p.rank} style={{ ...styles.leaderRow, borderBottom: i < 2 ? '2px solid #3e3d32' : 'none' }}>
-                                <div style={styles.leaderRank}>{p.badge}</div>
-                                <div style={styles.leaderName}>{p.username}</div>
-                                <div style={styles.leaderXP}>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#e6db74" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
-                                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                                    </svg>
-                                    {p.xp} XP
+                                    <div style={{ ...styles.catIcon, color: cat.color }}>{cat.slug.substring(0, 3).toUpperCase()}</div>
+                                    <div style={styles.catName}>{cat.name}</div>
+                                    <div style={styles.catCount}>{cat.questionCount || 0} questions</div>
                                 </div>
-                            </div>
-                        ))}
-                        <button style={styles.viewAllBtn} onClick={() => navigate('/leaderboard')}>
-                            view_all() →
+                            ))}
+                        </div>
+
+                        <div style={{ ...styles.diffRow, position: 'relative', zIndex: 999 }}>
+                            <span style={styles.diffLabel}>Difficulty:</span>
+                            {DIFFICULTIES.map((d, i) => {
+                                const isActive = selectedDifficulty === d;
+                                return (
+                                    <button
+                                        key={d}
+                                        onClick={() => setSelectedDifficulty(d)}
+                                        style={{
+                                            fontFamily: "'Space Mono', monospace",
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            padding: '5px 14px',
+                                            cursor: 'pointer',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                            border: `2px solid ${isActive ? '#f92672' : '#75715e'}`,
+                                            borderRight: i === DIFFICULTIES.length - 1 ? `2px solid ${isActive ? '#f92672' : '#75715e'}` : 'none',
+                                            background: isActive ? '#f92672' : 'transparent',
+                                            color: isActive ? '#f8f8f2' : '#75715e',
+                                        }}
+                                    >
+                                        {d}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            style={styles.startBtn}
+                            onClick={() => navigate('/quiz', {
+                                state: {
+                                    category: selectedCategory,
+                                    difficulty: selectedDifficulty,
+                                }
+                            })}
+                            onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
+                        >
+                            ▶ START QUIZ
                         </button>
                     </div>
-                </div>
 
+                    <div>
+                        <div style={styles.sectionTag}>{'// top_players'}</div>
+                        <div style={styles.leaderCard}>
+                            {LEADERBOARD.map((p, i) => (
+                                <div key={p.rank} style={{ ...styles.leaderRow, borderBottom: i < 2 ? '2px solid #3e3d32' : 'none' }}>
+                                    <div style={styles.leaderRank}>{p.badge}</div>
+                                    <div style={styles.leaderName}>{p.username}</div>
+                                    <div style={styles.leaderXP}>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#e6db74" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
+                                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                                        </svg>
+                                        {p.xp} XP
+                                    </div>
+                                </div>
+                            ))}
+                            <button style={styles.viewAllBtn} onClick={() => navigate('/leaderboard')}>
+                                view_all() →
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
-        </div>
-    </div >
-  );
+        </div >
+    );
 }
 
 const styles = {
@@ -245,7 +245,7 @@ const styles = {
 
     sectionTag: { fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '12px', letterSpacing: '2px' },
 
-    catsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', border: '3px solid #75715e' },
+    catsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '3px solid #75715e' },
     catCard: { padding: '20px', background: '#2d2c28', cursor: 'pointer', transition: 'background 0.15s' },
     catIcon: { fontSize: '24px', fontWeight: 700, marginBottom: '8px' },
     catName: { fontSize: '12px', fontWeight: 700, color: '#f8f8f2', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' },

@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
-import api from '../api/axios';
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
@@ -11,143 +10,36 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-const TIMER_MAX = 30;
+const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
 export default function Quiz() {
     const navigate = useNavigate();
-    const location = useLocation();
     const { user } = useAuth();
+    const [mode, setMode] = useState(null);
+    const [category, setCategory] = useState(null);
+    const [difficulty, setDifficulty] = useState('easy');
+    const [categories] = useState([
+  { slug: 'js',     name: 'JavaScript', short: 'JS',   color: '#e6db74' },
+  { slug: 'py',     name: 'Python',     short: 'PY',   color: '#66d9e8' },
+  { slug: 'sql',    name: 'SQL',        short: 'SQL',  color: '#f92672' },
+  { slug: 'algo',   name: 'Algorithms', short: 'AL',   color: '#a6e22e' },
+  { slug: 'react',  name: 'React',      short: 'RE',   color: '#66d9e8' },
+  { slug: 'node',   name: 'Node.js',    short: 'NO',   color: '#a6e22e' },
+  { slug: 'devops', name: 'DevOps',     short: 'DO',   color: '#e6db74' },
+  { slug: 'html',   name: 'HTML/CSS',   short: 'HT',   color: '#f92672' },
+]);
 
-    const category = location.state?.category || 'js';
-    const difficulty = location.state?.difficulty || 'Easy';
-
-    const [questions, setQuestions] = useState([]);
-    const [current, setCurrent] = useState(0);
-    const [selected, setSelected] = useState(null);
-    const [timer, setTimer] = useState(TIMER_MAX);
-    const [answered, setAnswered] = useState(false);
-    const [score, setScore] = useState(0);
-    const [seenIds, setSeenIds] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [xpGain, setXpGain] = useState(null);
-    const [exploding, setExploding] = useState(false);
-
-    // Fetch questions
-    useEffect(() => {
-        const fetchQuestions = async () => {
-            setLoading(true);
-            try {
-                const exclude = seenIds.join(',');
-                const res = await api.get(`/questions?category=${category}&difficulty=${difficulty}${exclude ? `&exclude=${exclude}` : ''}`);
-                setQuestions(res.data);
-                setSeenIds(prev => [...prev, ...res.data.map(q => q._id)]);
-            } catch {
-                setError('Failed to load questions');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchQuestions();
-    }, []);
-
-    
-
-    const getTimerColor = () => {
-        if (timer > 20) return '#a6e22e';
-        if (timer > 10) return '#e6db74';
-        return '#f92672';
+    const handleStart = () => {
+        if (!category) return;
+        if (mode === 'solo') {
+            navigate('/quiz/play', { state: { category, difficulty } });
+        } else if (mode === '1v1') {
+            navigate('/matchmaking', { state: { category, difficulty } });
+        }
     };
 
-    const handleAnswer = useCallback((answer) => {
-        if (answered) return;
-        setAnswered(true);
-        setSelected(answer);
-        const correct = questions[current]?.correct_answer === answer;
-        if (correct) {
-            setScore(s => s + 1);
-            setXpGain(10);
-            setTimeout(() => setXpGain(null), 1500);
-        }
-    }, [answered, questions, current]);
-
-    const handleNext = useCallback(async () => {
-        if (current + 1 >= questions.length) {
-            try {
-                const res = await api.post('/scores', {
-                    correctAnswers: score,
-                    difficulty,
-                    timeLeft: timer,
-                    timeLimit: TIMER_MAX,
-                });
-                navigate('/results', {
-                    state: {
-                        result: res.data.data,  // XP, newRank etc from Assma
-                        score,
-                        total: questions.length,
-                        category,
-                        difficulty,
-                    },
-                });
-            } catch {
-                // still navigate even if score submit fails
-                navigate('/results', {
-                    state: { score, total: questions.length, category, difficulty },
-                });
-            }
-            return;
-        }
-        setCurrent(c => c + 1);
-        setSelected(null);
-        setAnswered(false);
-        setTimer(TIMER_MAX);
-    }, [current, questions.length, score, timer, category, difficulty, navigate]);
-
-
-    // Timer
-    useEffect(() => {
-        if (answered || loading) return;
-        if (timer === 0) {
-            setTimeout(() => {
-                setExploding(true);
-                setTimeout(() => {
-                    setExploding(false);
-                    handleNext();
-                }, 1000);
-            }, 0); // ← moves setState out of the effect body
-            return;
-        }
-        const interval = setInterval(() => setTimer(t => t - 1), 1000);
-        return () => clearInterval(interval);
-    }, [timer, answered, loading, handleNext]);
-
-    // Keyboard shortcuts
-    useEffect(() => {
-        if (answered) return;
-        const handleKey = (e) => {
-            if (e.key === 't' || e.key === '1') handleAnswer(true);
-            if (e.key === 'f' || e.key === '2') handleAnswer(false);
-        };
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [answered, handleAnswer]);
-
-    if (loading) return (
-        <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={styles.loadingTag}>{'// loading_questions...'}</div>
-        </div>
-    );
-
-    if (error) return (
-        <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={styles.errorBox}>{error}</div>
-        </div>
-    );
-
-    const question = questions[current];
-
     return (
-        <div style={{ ...styles.page, animation: exploding ? 'shake 0.5s' : 'none' }}>
+        <div style={styles.page}>
 
             {/* Navbar */}
             <nav style={styles.nav}>
@@ -160,7 +52,6 @@ export default function Quiz() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -182,108 +73,103 @@ export default function Quiz() {
                 </div>
             </nav>
 
-            {/* Progress bar */}
-            <div style={styles.progressBar}>
-                <div style={{ ...styles.progressFill, width: `${((current) / questions.length) * 100}%`, background: getTimerColor() }} />
-            </div>
-
             <div style={styles.content}>
 
-                {/* Header row */}
-                <div style={styles.headerRow}>
-                    <div style={styles.questionTag}>
-                        {'// '}<span style={{ color: '#66d9e8' }}>{category}</span>
-                        {'.'}<span style={{ color: '#a6e22e' }}>{difficulty}</span>
+                {/* Header */}
+                <div style={styles.tag}>{'// setup_match'}</div>
+                <h1 style={styles.title}>
+                    <span style={styles.kw}>const</span> match{' '}
+                    <span style={styles.op}>=</span>{' '}
+                    <span style={styles.fn}>configure</span>
+                    <span style={styles.paren}>()</span>
+                </h1>
+
+                {/* Step 1 — Mode */}
+                <div style={styles.section}>
+                    <div style={styles.stepTag}>{'// step_1: select_mode'}</div>
+                    <div style={styles.modeGrid}>
+                        <div
+                            style={{ ...styles.modeCard, ...(mode === 'solo' ? styles.modeCardActive : {}), borderColor: mode === 'solo' ? '#a6e22e' : '#75715e' }}
+                            onClick={() => setMode('solo')}
+                        >
+                            <div style={styles.modeIcon}><svg width="32" height="32" viewBox="0 0 24 24" fill="#a6e22e"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" /></svg></div>
+                            <div style={{ ...styles.modeName, color: mode === 'solo' ? '#a6e22e' : '#f8f8f2' }}>SOLO</div>
+                            <div style={styles.modeDesc}>Practice at your own pace</div>
+                        </div>
+                        <div
+                            style={{ ...styles.modeCard, ...(mode === '1v1' ? styles.modeCardActive : {}), borderColor: mode === '1v1' ? '#f92672' : '#75715e' }}
+                            onClick={() => setMode('1v1')}
+                        >
+                            <div style={styles.modeIcon}><svg width="32" height="32" viewBox="0 0 24 24" fill="#f92672"><path d="M6.92 5H5L3 7l1.5 1.5L6 7l5 5-1.5 1.5L11 15l1.5-1.5L21 22l1-1-8.5-8.5L15 11l-1.5-1.5L19 5h-2l-3 3-3-3zM3 17l4 4 1.5-1.5-4-4z" /></svg></div>
+                            <div style={{ ...styles.modeName, color: mode === '1v1' ? '#f92672' : '#f8f8f2' }}>1v1 CHALLENGE</div>
+                            <div style={styles.modeDesc}>Battle a random opponent</div>
+                        </div>
                     </div>
-                    <div style={styles.scoreTag}>score: <span style={{ color: '#a6e22e' }}>{score}</span>/{questions.length}</div>
                 </div>
 
-                {/* Timer bomb */}
-                <div style={styles.timerRow}>
-                    <div style={{ ...styles.timerCircle, borderColor: getTimerColor(), color: getTimerColor(), boxShadow: `0 0 20px ${getTimerColor()}40` }}>
-                        <div style={styles.timerNum}>{timer}</div>
-                        <div style={styles.timerLabel}>SEC</div>
+                {/* Step 2 — Category */}
+                {mode && (
+                    <div style={styles.section}>
+                        <div style={styles.stepTag}>{'// step_2: select_category'}</div>
+                        <div style={styles.catsGrid}>
+                            {categories.map((cat, i) => (
+                                <div
+                                    key={cat.slug}
+                                    style={{
+                                        ...styles.catCard,
+                                        borderTop: `4px solid ${cat.color}`,
+                                        borderRight: (i + 1) % 4 !== 0 ? '3px solid #75715e' : 'none',
+                                        borderBottom: '3px solid #75715e',
+                                        ...(category === cat.slug ? { background: '#3e3d32' } : {}),
+                                    }}
+                                    onClick={() => setCategory(cat.slug)}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
+                                    onMouseLeave={e => e.currentTarget.style.background = category === cat.slug ? '#3e3d32' : '#2d2c28'}
+                                >
+                                    <div style={{ ...styles.catIcon, color: cat.color }}>{cat.short}</div>
+                                    <div style={styles.catName}>{cat.name}</div>
+                                    {category === cat.slug && <div style={{ fontSize: '10px', color: cat.color, marginTop: '4px' }}>✓ selected</div>}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    {exploding && (
-                        <div style={styles.explosion}>💥 TIME'S UP!</div>
-                    )}
-                </div>
-
-                {/* Question */}
-                <div style={styles.questionCard}>
-                    <div style={styles.questionNum}>// question_{current + 1}</div>
-                    <div style={styles.questionText}>{question?.text}</div>
-                </div>
-
-                {/* XP animation */}
-                {xpGain && (
-                    <div style={styles.xpPop}>+{xpGain} XP</div>
                 )}
 
-                {/* True / False buttons */}
-                <div style={styles.answerRow}>
-                    <button
-                        style={{
-                            ...styles.answerBtn,
-                            ...styles.trueBtn,
-                            ...(answered && question?.correct_answer === true ? styles.correctBtn : {}),
-                            ...(answered && selected === true && question?.correct_answer !== true ? styles.wrongBtn : {}),
-                            opacity: answered ? 0.85 : 1,
-                        }}
-                        onClick={() => handleAnswer(true)}
-                        disabled={answered}
-                    >
-                        <span style={styles.answerKey}>[T / 1]</span>
-                        TRUE
-                    </button>
-                    <button
-                        style={{
-                            ...styles.answerBtn,
-                            ...styles.falseBtn,
-                            ...(answered && question?.correct_answer === false ? styles.correctBtn : {}),
-                            ...(answered && selected === false && question?.correct_answer !== false ? styles.wrongBtn : {}),
-                            opacity: answered ? 0.85 : 1,
-                        }}
-                        onClick={() => handleAnswer(false)}
-                        disabled={answered}
-                    >
-                        <span style={styles.answerKey}>[F / 2]</span>
-                        FALSE
-                    </button>
-                </div>
-
-                {/* Next button */}
-                {answered && (
-                    <div style={styles.nextRow}>
-                        <div style={{ ...styles.resultTag, color: selected === question?.correct_answer ? '#a6e22e' : '#f92672' }}>
-                            {selected === question?.correct_answer ? '// correct! +10 XP' : '// wrong!'}
+                {/* Step 3 — Difficulty */}
+                {mode && category && (
+                    <div style={styles.section}>
+                        <div style={styles.stepTag}>{'// step_3: select_difficulty'}</div>
+                        <div style={styles.diffRow}>
+                            {DIFFICULTIES.map((d, i) => (
+                                <button
+                                    key={d}
+                                    style={{
+                                        ...styles.diffBtn,
+                                        borderRight: i === DIFFICULTIES.length - 1 ? '2px solid #75715e' : 'none',
+                                        ...(difficulty === d ? styles.diffBtnActive : {}),
+                                    }}
+                                    onClick={() => setDifficulty(d)}
+                                >
+                                    {d}
+                                </button>
+                            ))}
                         </div>
-                        <button
-                            style={styles.nextBtn}
-                            onClick={handleNext}
-                            onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
-                            onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
-                        >
-                            {current + 1 >= questions.length ? 'VIEW RESULTS →' : 'NEXT →'}
-                        </button>
                     </div>
+                )}
+
+                {/* Start button */}
+                {mode && category && (
+                    <button
+                        style={{ ...styles.startBtn, opacity: !category ? 0.5 : 1 }}
+                        onClick={handleStart}
+                        onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
+                        onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
+                    >
+                        {mode === 'solo' ? '▶ START SOLO QUIZ' : '⚔ FIND OPPONENT'}
+                    </button>
                 )}
 
             </div>
-
-            <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-10px); }
-          40% { transform: translateX(10px); }
-          60% { transform: translateX(-10px); }
-          80% { transform: translateX(10px); }
-        }
-        @keyframes popUp {
-          0% { transform: translateY(0); opacity: 1; }
-          100% { transform: translateY(-60px); opacity: 0; }
-        }
-      `}</style>
         </div>
     );
 }
@@ -300,39 +186,33 @@ const styles = {
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
     xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },
 
-    progressBar: { height: '6px', background: '#3e3d32', width: '100%' },
-    progressFill: { height: '100%', transition: 'width 0.3s ease, background 0.5s ease' },
+    content: { padding: '28px 24px', maxWidth: '900px', margin: '0 auto' },
 
-    content: { padding: '28px 24px', maxWidth: '800px', margin: '0 auto' },
+    tag: { fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '10px', letterSpacing: '2px' },
+    title: { fontSize: '28px', fontWeight: 700, color: '#f8f8f2', marginBottom: '28px' },
+    kw: { color: '#66d9e8' },
+    op: { color: '#f92672' },
+    fn: { color: '#a6e22e' },
+    paren: { color: '#f8f8f2' },
 
-    headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-    questionTag: { fontSize: '12px', background: '#3e3d32', color: '#75715e', padding: '3px 10px', letterSpacing: '1px' },
-    scoreTag: { fontSize: '12px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
+    section: { marginBottom: '24px' },
+    stepTag: { fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '12px', letterSpacing: '2px' },
 
-    timerRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px', gap: '20px' },
-    timerCircle: { width: '80px', height: '80px', borderRadius: '50%', border: '4px solid', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.5s, color 0.5s, box-shadow 0.5s' },
-    timerNum: { fontSize: '24px', fontWeight: 700, lineHeight: 1 },
-    timerLabel: { fontSize: '9px', letterSpacing: '2px', marginTop: '2px' },
-    explosion: { fontSize: '20px', fontWeight: 700, color: '#f92672', animation: 'shake 0.5s' },
+    modeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+    modeCard: { background: '#1e1f1a', border: '3px solid', padding: '24px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: '4px 4px 0 #3e3d32' },
+    modeCardActive: { boxShadow: '4px 4px 0 #3e3d32' },
+    modeIcon: { fontSize: '32px', marginBottom: '12px' },
+    modeName: { fontFamily: "'Space Mono', monospace", fontSize: '16px', fontWeight: 700, marginBottom: '8px', letterSpacing: '2px' },
+    modeDesc: { fontSize: '11px', color: '#75715e' },
 
-    questionCard: { background: '#1e1f1a', border: '3px solid #75715e', padding: '24px', marginBottom: '28px', boxShadow: '4px 4px 0 #3e3d32' },
-    questionNum: { fontSize: '11px', color: '#75715e', marginBottom: '12px', letterSpacing: '1px' },
-    questionText: { fontSize: '18px', fontWeight: 700, color: '#f8f8f2', lineHeight: 1.5 },
+    catsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '3px solid #75715e' },
+    catCard: { padding: '16px', background: '#2d2c28', cursor: 'pointer', transition: 'background 0.15s' },
+    catIcon: { fontSize: '18px', fontWeight: 700, marginBottom: '6px' },
+    catName: { fontSize: '11px', fontWeight: 700, color: '#f8f8f2', textTransform: 'uppercase', letterSpacing: '1px' },
 
-    xpPop: { position: 'fixed', top: '40%', left: '50%', transform: 'translateX(-50%)', fontSize: '28px', fontWeight: 700, color: '#a6e22e', animation: 'popUp 1.5s forwards', zIndex: 999, fontFamily: "'Space Mono', monospace", pointerEvents: 'none' },
+    diffRow: { display: 'flex' },
+    diffBtn: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, padding: '8px 24px', border: '2px solid #75715e', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent', color: '#75715e' },
+    diffBtnActive: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
 
-    answerRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' },
-    answerBtn: { fontFamily: "'Space Mono', monospace", fontSize: '20px', fontWeight: 700, padding: '24px', border: '3px solid', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '3px', boxShadow: '4px 4px 0 #3e3d32', transition: 'opacity 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' },
-    answerKey: { fontSize: '11px', fontWeight: 400, letterSpacing: '1px', opacity: 0.6 },
-    trueBtn: { background: '#1e1f1a', color: '#a6e22e', borderColor: '#a6e22e' },
-    falseBtn: { background: '#1e1f1a', color: '#f92672', borderColor: '#f92672' },
-    correctBtn: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
-    wrongBtn: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
-
-    nextRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-    resultTag: { fontSize: '13px', fontFamily: "'Space Mono', monospace" },
-    nextBtn: { fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '10px 24px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
-
-    loadingTag: { fontSize: '14px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
-    errorBox: { background: 'rgba(249,38,114,0.15)', border: '2px solid #f92672', color: '#f92672', padding: '10px 14px', fontFamily: "'Space Mono', monospace", fontSize: '12px' },
+    startBtn: { width: '100%', background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', fontFamily: "'Space Mono', monospace", fontSize: '14px', fontWeight: 700, padding: '14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
 };
