@@ -1,8 +1,8 @@
 const io = require('socket.io-client');
 const axios = require('axios');
 
-const API_URL = 'http://localhost:5001/api';
-const SOCKET_URL = 'http://localhost:5001';
+const API_URL = 'http://localhost:5000/api';
+const SOCKET_URL = 'http://localhost:5000';
 
 async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

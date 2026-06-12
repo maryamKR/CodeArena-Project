@@ -209,24 +209,95 @@ class MatchService {
     challenge.status = 'completed';
     await challenge.save();
 
-    // Emit final results
-    io.to(challengeId).emit('match_over', {
+    const finalPayload = {
       winnerId,
       results: {
         [senderId]: { correctCount: senderState.correctCount, xpEarned: senderResult.earnedXP, timeTaken: senderState.timeTaken },
         [receiverId]: { correctCount: receiverState.correctCount, xpEarned: receiverResult.earnedXP, timeTaken: receiverState.timeTaken }
       }
-    });
+    };
+
+    console.log('MATCH OVER emitted', finalPayload);
+
+    // Emit final results
+    io.to(challengeId).emit('match_over', finalPayload);
 
     // Clean up memory
     activeMatches.delete(challengeId);
   }
 
   /**
-   * Handle unexpected disconnects
+   * Handle unexpected disconnects mid-match.
+   * Awards the win to the remaining player by forfeit.
    */
-  handleDisconnect(socket, io) {
+  async handleDisconnect(socket, io) {
+    // Find if this socket was in any active match
+    for (const [challengeId, matchState] of activeMatches.entries()) {
+      const disconnectedId = Object.keys(matchState.players).find(
+        id => matchState.players[id].socketId === socket.id
+      );
 
+      if (!disconnectedId) continue;
+
+      // Found the match this player was in
+      const winnerId = Object.keys(matchState.players).find(id => id !== disconnectedId);
+
+      // Only process a forfeit win if the match had actually started
+      if (matchState.questions && matchState.questions.length > 0) {
+        // Notify the remaining player
+        if (winnerId) {
+          io.to(challengeId).emit('match_over', {
+            winnerId,
+            forfeit: true,
+            forfeitedBy: disconnectedId,
+            results: {
+              [disconnectedId]: { correctCount: 0, xpEarned: 0, timeTaken: 0 },
+              [winnerId]: {
+                correctCount: matchState.players[winnerId].correctCount,
+                xpEarned: 0, // Will be calculated below
+                timeTaken: matchState.players[winnerId].timeTaken,
+              },
+            },
+          });
+
+          // Award XP to the winner for the questions they already answered
+          try {
+            const { challenge } = matchState;
+            const TIME_LIMIT = 150;
+            const winnerState = matchState.players[winnerId];
+            await scoreService.submitScore(
+              winnerId,
+              winnerState.correctCount,
+              challenge.difficulty,
+              Math.max(0, TIME_LIMIT - winnerState.timeTaken),
+              TIME_LIMIT,
+              challenge.category ? challenge.category._id : null
+            );
+
+            // Mark challenge as completed
+            challenge.status = 'completed';
+            await challenge.save();
+          } catch (err) {
+            console.error('Error saving forfeit result:', err);
+          }
+        }
+      } else {
+        // Match was still in the lobby phase (waiting for both players to join)
+        // Abort the match
+        io.to(challengeId).emit('match_error', { message: 'Opponent disconnected before the match started.' });
+        try {
+          const { challenge } = matchState;
+          challenge.status = 'declined'; // Mark as declined/aborted
+          await challenge.save();
+        } catch (err) {
+          console.error('Error aborting unstarted match:', err);
+        }
+      }
+
+      // Clean up
+      activeMatches.delete(challengeId);
+      break;
+    }
   }
 }
 

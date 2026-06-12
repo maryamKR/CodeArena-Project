@@ -12,7 +12,10 @@ const startServer = async () => {
     const server = http.createServer(app);
 
     // Initialize Socket.IO
-    initSocket(server);
+    const io = initSocket(server);
+
+    // Expose io on the Express app so controllers can emit events via req.app.get('io')
+    app.set('io', io);
 
     // Start listening
     const PORT = process.env.PORT || 5000;
