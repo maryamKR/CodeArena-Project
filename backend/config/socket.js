@@ -3,6 +3,7 @@ const cookie = require('cookie');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const matchService = require('../services/matchService');
+const matchmakingService = require('../services/matchmakingService');
 
 const initSocket = (server) => {
   const io = new Server(server, {
@@ -71,6 +72,8 @@ const initSocket = (server) => {
     socket.on('disconnect', async () => {
       try {
         await User.findByIdAndUpdate(socket.user._id, { isOnline: false });
+        // Remove from matchmaking queue if they were waiting
+        matchmakingService.removeBySocketId(socket.id);
         matchService.handleDisconnect(socket, io);
       } catch (err) {
         console.error('Error updating offline status:', err);

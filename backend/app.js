@@ -14,6 +14,7 @@ const leaderboardRoutes = require('./routes/leaderboardRoutes');
 const hallOfFameRoutes = require('./routes/hallOfFameRoutes');
 const historyRoutes = require('./routes/historyRoutes');
 const challengeRoutes = require('./routes/challengeRoutes');
+const matchmakingRoutes = require('./routes/matchmakingRoutes');
 
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -73,6 +74,7 @@ app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/hall-of-fame", hallOfFameRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/challenges", challengeRoutes);
+app.use("/api/matchmaking", matchmakingRoutes);
 
 // Test Route
 app.get("/api/test", (req, res) => {
