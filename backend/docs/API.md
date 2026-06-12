@@ -109,6 +109,7 @@ Returns the authenticated user's profile. Used for session checks and profile pa
   "username": "testuser",
   "email": "test@example.com",
   "totalXP": 0,
+  "quizzesPlayed": 0,
   "badges": [],
   "rank": "Beginner",
   "isOnline": false,
@@ -299,6 +300,368 @@ Creates a new category. Fails if the slug is already in use.
   "name": "Frontend",
   "slug": "frontend",
   "color": "#e34c26"
+}
+```
+
+---
+
+## Score Endpoints
+
+### Submit Quiz Score
+`POST /scores`
+
+Submits quiz results, calculates XP based on performance, and updates the user's total XP and rank.
+
+**Auth required:** yes
+
+**Request body:**
+```json
+{
+  "correctAnswers": 8,
+  "difficulty": "Medium",
+  "timeLeft": 45,
+  "timeLimit": 120
+}
+```
+
+**Parameters:**
+- `correctAnswers` (required, number): Number of correct answers.
+- `difficulty` (optional, string): Quiz difficulty (`Easy`, `Medium`, `Hard`). Defaults to `Easy` multiplier.
+- `timeLeft` (optional, number): Seconds remaining when quiz was finished.
+- `timeLimit` (optional, number): Total time limit for the quiz in seconds.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "earnedXP": 110,
+    "totalXP": 610,
+    "quizzesPlayed": 5,
+    "rank": "Intermediate",
+    "breakdown": {
+      "correctAnswers": 8,
+      "baseXPPerAnswer": 10,
+      "difficultyMultiplier": 2,
+      "speedBonus": 1.38
+    }
+  },
+  "message": "Score submitted and XP updated successfully"
+}
+```
+
+**Error responses:**
+- `400` — Invalid or missing `correctAnswers`
+- `401` — Not authenticated
+
+---
+
+## Leaderboard Endpoints
+
+### Get Leaderboard
+`GET /leaderboard`
+
+Fetches the top users sorted by XP descending.
+
+**Query params (optional):**
+- `category` — slug or ObjectId of the category to filter by (sorts by category-specific XP).
+- `difficulty` — `Easy`, `Medium`, or `Hard` — ranks users by total XP earned exclusively in quizzes of that difficulty (derived from history).
+- `limit` — Maximum number of users to return (default: 10).
+
+**Response `200` (no difficulty filter):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "username": "mastercoder",
+      "totalXP": 15000,
+      "categoryXP": {
+        "60d5ecb8b392d700153c3c12": 5000
+      },
+      "rank": "Master",
+      "badges": ["First Blood"],
+      "isOnline": true
+    }
+  ]
+}
+```
+
+**Response `200` (with `?difficulty=Hard`):**
+```json
+{
+  "success": true,
+  "filters": { "difficulty": "Hard", "category": null },
+  "data": [
+    {
+      "_id": "...",
+      "username": "mastercoder",
+      "totalEarnedXP": 9000,
+      "quizzesPlayed": 15,
+      "rank": "Master",
+      "badges": ["First Blood"],
+      "isOnline": true
+    }
+  ]
+}
+```
+
+---
+
+### Get Hall of Fame
+`GET /hall-of-fame`
+
+Fetches the top 10 all-time users globally sorted by total XP descending. Returns a condensed profile containing only username, totalXP, badges, and rank.
+
+**Query params (optional):**
+- `limit` — Maximum number of users to return (capped at a maximum of 10).
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "username": "mastercoder",
+      "totalXP": 15000,
+      "rank": "Master",
+      "badges": ["First Blood"]
+    }
+  ]
+}
+```
+
+---
+
+## History Endpoints
+
+### Get User History
+`GET /history/:username`
+
+Fetches a specific user's quiz attempt history.
+**Privacy constraint:** A user can only access their own history. Admins can view any user's history.
+
+**Auth required:** yes
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "user": "...",
+      "category": {
+        "_id": "...",
+        "name": "Frontend",
+        "slug": "frontend",
+        "color": "#e34c26"
+      },
+      "correctAnswers": 8,
+      "difficulty": "Medium",
+      "earnedXP": 110,
+      "timeLeft": 45,
+      "timeLimit": 120,
+      "createdAt": "2023-10-10T14:48:00.000Z"
+    }
+  ]
+}
+```
+
+**Error responses:**
+- `403` — Forbidden: You can only view your own history
+
+---
+
+### Get Global History
+`GET /history`
+
+Fetches a global feed of all quiz attempts.
+
+**Auth required:** yes (Admin only)
+
+**Query params (optional):**
+- `limit` — Maximum number of records to return (default: 50).
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "count": 50,
+  "data": [
+    {
+      "_id": "...",
+      "user": {
+        "_id": "...",
+        "username": "testuser",
+        "rank": "Intermediate",
+        "badges": []
+      },
+      "category": {
+        "_id": "...",
+        "name": "Frontend",
+        "slug": "frontend",
+        "color": "#e34c26"
+      },
+      "correctAnswers": 8,
+      "difficulty": "Medium",
+      "earnedXP": 110,
+      "createdAt": "2023-10-10T14:48:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## Challenge Endpoints
+
+### Send a Challenge
+`POST /challenges`
+
+Sends a challenge to another user by username.
+
+**Auth required:** yes
+
+**Rate limit:** 10 requests per 15 minutes per IP
+
+**Request body:**
+```json
+{
+  "receiverUsername": "opponent",
+  "category": "60d5ecb8b392d700153c3c12",
+  "difficulty": "Hard",
+  "message": "Think you can beat me?"
+}
+```
+
+**Parameters:**
+- `receiverUsername` (required, string) — username of the player to challenge (min 3 chars)
+- `category` (optional, ObjectId) — category to restrict the quiz to
+- `difficulty` (optional, string) — `Easy`, `Medium`, or `Hard` (default: `Easy`)
+- `message` (optional, string) — personal note, max 200 characters
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+    "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [] },
+    "receiver": { "_id": "...", "username": "opponent", "rank": "Intermediate", "badges": [] },
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+    "difficulty": "Hard",
+    "message": "Think you can beat me?",
+    "status": "pending",
+    "expiresAt": "2026-06-14T10:00:00.000Z",
+    "createdAt": "2026-06-12T10:00:00.000Z"
+  },
+  "message": "Challenge sent to opponent"
+}
+```
+
+**Error responses:**
+- `400` — cannot challenge yourself
+- `404` — receiver username not found
+- `409` — a pending challenge already exists with this user
+- `429` — rate limit exceeded
+
+---
+
+### Accept a Challenge
+`PUT /challenges/:id/accept`
+
+Accepts a pending challenge. Only the challenge receiver can call this.
+
+**Auth required:** yes
+
+**URL params:**
+- `id` — UUID of the challenge
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+    "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [] },
+    "receiver": { "_id": "...", "username": "opponent", "rank": "Intermediate", "badges": [] },
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+    "difficulty": "Hard",
+    "status": "accepted",
+    "expiresAt": "2026-06-14T10:00:00.000Z"
+  },
+  "message": "Challenge accepted"
+}
+```
+
+**Error responses:**
+- `400` — challenge is not in `pending` state
+- `403` — authenticated user is not the receiver
+- `404` — challenge not found
+
+---
+
+### Decline a Challenge
+`PUT /challenges/:id/decline`
+
+Declines a pending challenge. Only the challenge receiver can call this.
+
+**Auth required:** yes
+
+**URL params:**
+- `id` — UUID of the challenge
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+    "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [] },
+    "receiver": { "_id": "...", "username": "opponent", "rank": "Intermediate", "badges": [] },
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+    "difficulty": "Hard",
+    "status": "declined",
+    "expiresAt": "2026-06-14T10:00:00.000Z"
+  },
+  "message": "Challenge declined"
+}
+```
+
+**Error responses:**
+- `400` — challenge is not in `pending` state
+- `403` — authenticated user is not the receiver
+- `404` — challenge not found
+
+---
+
+### Get Pending Challenges
+`GET /challenges/pending`
+
+Returns all pending (non-expired) challenges sent to the authenticated user, newest first.
+
+**Auth required:** yes
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+      "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [], "isOnline": true },
+      "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+      "difficulty": "Hard",
+      "message": "Think you can beat me?",
+      "status": "pending",
+      "expiresAt": "2026-06-14T10:00:00.000Z",
+      "createdAt": "2026-06-12T10:00:00.000Z"
+    }
+  ]
 }
 ```
 

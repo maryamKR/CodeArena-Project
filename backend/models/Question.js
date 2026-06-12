@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { DIFFICULTY_LEVELS } = require("../utils/constants");
 
 const QuestionSchema = new mongoose.Schema(
   {
@@ -18,8 +19,8 @@ const QuestionSchema = new mongoose.Schema(
     },
     difficulty: {
       type: String,
+      enum: DIFFICULTY_LEVELS,
       required: true,
-      enum: ["Easy", "Medium", "Hard"],
     },
   },
   { timestamps: true },

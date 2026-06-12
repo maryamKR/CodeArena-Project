@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { USER_ROLES, USER_RANKS } = require("../utils/constants");
 
 const UserSchema = new mongoose.Schema(
   {
@@ -39,7 +40,7 @@ const UserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: USER_ROLES,
       default: 'user'
     },
     isOnline: {
@@ -51,12 +52,22 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    quizzesPlayed: {
+      type: Number,
+      default: 0,
+    },
+    categoryXP: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
     badges: {
       type: [String],
       default: [],
     },
     rank: {
       type: String,
+      enum: USER_RANKS,
       default: "Beginner",
     },
   },

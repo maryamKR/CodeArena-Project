@@ -56,4 +56,34 @@ const registerLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-module.exports = { passwordResetLimiter, passwordUpdateLimiter, loginLimiter, registerLimiter };
+/**
+ * Rate limiter for score submissions to prevent XP farming.
+ * Limits each IP to 30 requests per 15 minutes.
+ */
+const scoreLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 30,
+    message: {
+        success: false,
+        error: 'Too many score submissions, please try again later'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+/**
+ * Rate limiter for challenge sends to prevent spam.
+ * Limits each IP to 10 challenge sends per 15 minutes.
+ */
+const challengeLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    message: {
+        success: false,
+        error: 'Too many challenge requests, please try again later'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+module.exports = { passwordResetLimiter, passwordUpdateLimiter, loginLimiter, registerLimiter, scoreLimiter, challengeLimiter };
