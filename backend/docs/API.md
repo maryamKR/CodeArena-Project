@@ -516,6 +516,157 @@ Fetches a global feed of all quiz attempts.
 
 ---
 
+## Challenge Endpoints
+
+### Send a Challenge
+`POST /challenges`
+
+Sends a challenge to another user by username.
+
+**Auth required:** yes
+
+**Rate limit:** 10 requests per 15 minutes per IP
+
+**Request body:**
+```json
+{
+  "receiverUsername": "opponent",
+  "category": "60d5ecb8b392d700153c3c12",
+  "difficulty": "Hard",
+  "message": "Think you can beat me?"
+}
+```
+
+**Parameters:**
+- `receiverUsername` (required, string) — username of the player to challenge (min 3 chars)
+- `category` (optional, ObjectId) — category to restrict the quiz to
+- `difficulty` (optional, string) — `Easy`, `Medium`, or `Hard` (default: `Easy`)
+- `message` (optional, string) — personal note, max 200 characters
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+    "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [] },
+    "receiver": { "_id": "...", "username": "opponent", "rank": "Intermediate", "badges": [] },
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+    "difficulty": "Hard",
+    "message": "Think you can beat me?",
+    "status": "pending",
+    "expiresAt": "2026-06-14T10:00:00.000Z",
+    "createdAt": "2026-06-12T10:00:00.000Z"
+  },
+  "message": "Challenge sent to opponent"
+}
+```
+
+**Error responses:**
+- `400` — cannot challenge yourself
+- `404` — receiver username not found
+- `409` — a pending challenge already exists with this user
+- `429` — rate limit exceeded
+
+---
+
+### Accept a Challenge
+`PUT /challenges/:id/accept`
+
+Accepts a pending challenge. Only the challenge receiver can call this.
+
+**Auth required:** yes
+
+**URL params:**
+- `id` — UUID of the challenge
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+    "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [] },
+    "receiver": { "_id": "...", "username": "opponent", "rank": "Intermediate", "badges": [] },
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+    "difficulty": "Hard",
+    "status": "accepted",
+    "expiresAt": "2026-06-14T10:00:00.000Z"
+  },
+  "message": "Challenge accepted"
+}
+```
+
+**Error responses:**
+- `400` — challenge is not in `pending` state
+- `403` — authenticated user is not the receiver
+- `404` — challenge not found
+
+---
+
+### Decline a Challenge
+`PUT /challenges/:id/decline`
+
+Declines a pending challenge. Only the challenge receiver can call this.
+
+**Auth required:** yes
+
+**URL params:**
+- `id` — UUID of the challenge
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+    "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [] },
+    "receiver": { "_id": "...", "username": "opponent", "rank": "Intermediate", "badges": [] },
+    "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+    "difficulty": "Hard",
+    "status": "declined",
+    "expiresAt": "2026-06-14T10:00:00.000Z"
+  },
+  "message": "Challenge declined"
+}
+```
+
+**Error responses:**
+- `400` — challenge is not in `pending` state
+- `403` — authenticated user is not the receiver
+- `404` — challenge not found
+
+---
+
+### Get Pending Challenges
+`GET /challenges/pending`
+
+Returns all pending (non-expired) challenges sent to the authenticated user, newest first.
+
+**Auth required:** yes
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": "e2f1f3a2-4a5c-4e89-8d6b-7d1c3a8e9b4d",
+      "sender": { "_id": "...", "username": "alice", "rank": "Master", "badges": [], "isOnline": true },
+      "category": { "_id": "...", "name": "Frontend", "slug": "frontend", "color": "#e34c26" },
+      "difficulty": "Hard",
+      "message": "Think you can beat me?",
+      "status": "pending",
+      "expiresAt": "2026-06-14T10:00:00.000Z",
+      "createdAt": "2026-06-12T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
 ## Security Notes
 
 - Passwords are hashed with bcrypt (salt rounds: 10)

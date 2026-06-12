@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { DIFFICULTY_LEVELS } = require("../utils/constants");
 
 const HistorySchema = new mongoose.Schema(
   {
@@ -19,7 +20,7 @@ const HistorySchema = new mongoose.Schema(
     },
     difficulty: {
       type: String,
-      enum: ["Easy", "Medium", "Hard"],
+      enum: DIFFICULTY_LEVELS,
       default: "Easy",
     },
     earnedXP: {

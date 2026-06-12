@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const History = require('../models/History');
+const { RANK_THRESHOLDS } = require('../utils/constants');
 
 const DIFFICULTY_MULTIPLIERS = {
   easy: 1,
@@ -8,12 +9,6 @@ const DIFFICULTY_MULTIPLIERS = {
 };
 
 const BASE_XP_PER_ANSWER = 10;
-
-const RANK_THRESHOLDS = [
-  { minXP: 10000, rank: 'Master' },
-  { minXP: 5000, rank: 'Advanced' },
-  { minXP: 1000,  rank: 'Intermediate' },
-];
 
 class ScoreService {
   /**
