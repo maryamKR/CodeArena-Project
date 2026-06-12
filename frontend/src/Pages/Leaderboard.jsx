@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -32,7 +32,7 @@ export default function Leaderboard() {
                 if (difficulty !== 'All') params.difficulty = difficulty;
                 const res = await api.get('/leaderboard', { params });
                 setPlayers(Array.isArray(res.data) ? res.data : res.data.players || []);
-            } catch (err) {
+            } catch {
                 setError('Failed to load leaderboard');
             } finally {
                 setLoading(false);

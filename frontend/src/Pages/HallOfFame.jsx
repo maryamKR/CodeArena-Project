@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -28,9 +28,9 @@ export default function HallOfFame() {
         const fetchHallOfFame = async () => {
             setLoading(true);
             try {
-                const res = await api.get('/hall-of-fame');
+                const res = await api.get('/api/hall-of-fame');
                 setPlayers(Array.isArray(res.data) ? res.data : res.data.players || []);
-            } catch (err) {
+            } catch {
                 setError('Failed to load Hall of Fame');
             } finally {
                 setLoading(false);
