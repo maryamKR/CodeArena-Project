@@ -2,8 +2,7 @@ const scoreService = require('../services/scoreService');
 const dailyChallengeService = require('../services/dailyChallengeService');
 
 /**
- * @desc    Submit a quiz score and calculate XP.
- *          Pass isDailyChallenge: true to also claim today's bonus XP.
+ * @desc    Submit a quiz score and calculate XP
  * @route   POST /api/scores
  * @access  Private
  */
@@ -14,18 +13,14 @@ exports.submitScore = async (req, res, next) => {
     let bonusXP = 0;
 
     if (isDailyChallenge) {
-      // Guard: user may only complete the daily challenge once per UTC day
       const todayUTC = new Date().toISOString().slice(0, 10);
       if (req.user.lastDailyChallengeDate === todayUTC) {
         const error = new Error("You have already completed today's daily challenge");
         error.statusCode = 409;
         return next(error);
       }
-
-      // Throws 404 via service if no challenge is set today
       bonusXP = await dailyChallengeService.getTodayBonusXP();
     }
-
 
     const result = await scoreService.submitScore(
       req.user._id,

@@ -7,26 +7,14 @@ const mongoose = require('mongoose');
  * @desc    Get leaderboard
  * @route   GET /api/leaderboard
  * @access  Public
- *
- * Query params:
- *  - category  (string)  slug or ObjectId — filter by category XP
- *  - difficulty (string) Easy | Medium | Hard — rank by XP earned in that difficulty
- *  - limit     (number)  default 10
- *
- * When difficulty is provided the leaderboard is derived from the History
- * collection via aggregation. When omitted the fast User index is used.
  */
 exports.getLeaderboard = async (req, res, next) => {
   try {
     const { category, difficulty, limit = 10 } = req.validated.query;
 
-    // ── Difficulty-based leaderboard ─────────────────────────────────────────
-    // Aggregate History docs filtered by difficulty (and optionally category),
-    // group by user, sum earnedXP, then populate user details.
     if (difficulty) {
       const matchStage = { difficulty };
 
-      // Resolve category filter
       if (category) {
         let categoryId;
         if (mongoose.Types.ObjectId.isValid(category)) {
@@ -43,23 +31,10 @@ exports.getLeaderboard = async (req, res, next) => {
 
       const results = await History.aggregate([
         { $match: matchStage },
-        {
-          $group: {
-            _id: '$user',
-            totalEarnedXP: { $sum: '$earnedXP' },
-            quizzesPlayed: { $sum: 1 },
-          },
-        },
+        { $group: { _id: '$user', totalEarnedXP: { $sum: '$earnedXP' }, quizzesPlayed: { $sum: 1 } } },
         { $sort: { totalEarnedXP: -1 } },
         { $limit: limit },
-        {
-          $lookup: {
-            from: 'users',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'user',
-          },
-        },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
         { $unwind: '$user' },
         {
           $project: {
@@ -81,7 +56,6 @@ exports.getLeaderboard = async (req, res, next) => {
       });
     }
 
-    // ── Standard leaderboard (no difficulty filter) ───────────────────────────
     let sortQuery = { totalXP: -1 };
     let matchQuery = { totalXP: { $gt: 0 } };
     let categoryId = null;
@@ -96,7 +70,6 @@ exports.getLeaderboard = async (req, res, next) => {
         }
         categoryId = categoryDoc._id.toString();
       }
-
       sortQuery = { [`categoryXP.${categoryId}`]: -1 };
       matchQuery = { [`categoryXP.${categoryId}`]: { $gt: 0 } };
     }
@@ -106,10 +79,7 @@ exports.getLeaderboard = async (req, res, next) => {
       .limit(limit)
       .select('username totalXP categoryXP rank badges isOnline');
 
-    res.status(200).json({
-      success: true,
-      data: topUsers,
-    });
+    res.status(200).json({ success: true, data: topUsers });
   } catch (error) {
     next(error);
   }
@@ -123,56 +93,40 @@ exports.getLeaderboard = async (req, res, next) => {
 exports.getHallOfFame = async (req, res, next) => {
   try {
     const requestedLimit = req.validated?.query?.limit || 10;
-    const limit = Math.min(requestedLimit, 10); // Enforce max top 10
+    const limit = Math.min(requestedLimit, 10);
 
     const topUsers = await User.find({ totalXP: { $gt: 0 } })
       .sort({ totalXP: -1 })
       .limit(limit)
       .select('username totalXP badges rank');
 
-    res.status(200).json({
-      success: true,
-      data: topUsers
-    });
+    res.status(200).json({ success: true, data: topUsers });
   } catch (error) {
     next(error);
   }
 };
+
 /**
  * @desc    Get the authenticated user's global rank
  * @route   GET /api/leaderboard/me
  * @access  Private
- *
- * Returns the user's position in the global leaderboard (1-indexed).
- * Position = number of users with strictly more totalXP + 1.
  */
 exports.getMyRank = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
-    // Fetch current user's XP
     const user = await User.findById(userId).select('username totalXP rank badges');
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Count how many users have strictly more XP (fast index scan on totalXP)
     const usersAhead = await User.countDocuments({ totalXP: { $gt: user.totalXP } });
     const globalRank = usersAhead + 1;
-
-    // Count total ranked users for context
     const totalRanked = await User.countDocuments({ totalXP: { $gt: 0 } });
 
     res.status(200).json({
       success: true,
-      data: {
-        globalRank,
-        totalRanked,
-        username: user.username,
-        totalXP: user.totalXP,
-        rank: user.rank,
-        badges: user.badges,
-      },
+      data: { globalRank, totalRanked, username: user.username, totalXP: user.totalXP, rank: user.rank, badges: user.badges },
     });
   } catch (error) {
     next(error);

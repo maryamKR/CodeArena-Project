@@ -1,10 +1,8 @@
 const DailyChallenge = require('../models/DailyChallenge');
 const Category = require('../models/Category');
 
-/** Returns today's date as a "YYYY-MM-DD" UTC string */
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 
-/** Seconds remaining until next UTC midnight */
 const secondsUntilMidnightUTC = () => {
   const now = new Date();
   const midnight = new Date(Date.UTC(
@@ -17,13 +15,6 @@ const secondsUntilMidnightUTC = () => {
 };
 
 class DailyChallengeService {
-  /**
-   * Returns the active daily challenge for today (UTC).
-   * Populates category with name, slug, and color.
-   *
-   * @returns {Promise<Object>} Shaped challenge data including resetsIn
-   * @throws  {Error} 404 if no challenge is set for today
-   */
   async getToday() {
     const challenge = await DailyChallenge.findOne({ activeDate: todayUTC() })
       .populate('category', 'name slug color')
@@ -45,18 +36,6 @@ class DailyChallengeService {
     };
   }
 
-  /**
-   * Creates or replaces the daily challenge for a given date.
-   * Verifies the category exists before upserting.
-   *
-   * @param {string} categoryId  - Valid Category ObjectId
-   * @param {string} difficulty  - 'Easy' | 'Medium' | 'Hard'
-   * @param {number} bonusXP     - Flat bonus XP (0–10 000)
-   * @param {string|null} date   - YYYY-MM-DD string, defaults to today UTC
-   * @param {string} adminId     - ID of the admin creating the challenge
-   * @returns {Promise<Object>}  Shaped challenge data
-   * @throws  {Error} 404 if category does not exist
-   */
   async setChallenge(categoryId, difficulty, bonusXP, date, adminId) {
     const category = await Category.findById(categoryId);
     if (!category) {
@@ -83,12 +62,6 @@ class DailyChallengeService {
     };
   }
 
-  /**
-   * Returns today's bonusXP for use in the score pipeline.
-   * Throws 404 if no challenge is active.
-   *
-   * @returns {Promise<number>}
-   */
   async getTodayBonusXP() {
     const challenge = await DailyChallenge.findOne(
       { activeDate: todayUTC() },
