@@ -138,3 +138,43 @@ exports.getHallOfFame = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Get the authenticated user's global rank
+ * @route   GET /api/leaderboard/me
+ * @access  Private
+ *
+ * Returns the user's position in the global leaderboard (1-indexed).
+ * Position = number of users with strictly more totalXP + 1.
+ */
+exports.getMyRank = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch current user's XP
+    const user = await User.findById(userId).select('username totalXP rank badges');
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Count how many users have strictly more XP (fast index scan on totalXP)
+    const usersAhead = await User.countDocuments({ totalXP: { $gt: user.totalXP } });
+    const globalRank = usersAhead + 1;
+
+    // Count total ranked users for context
+    const totalRanked = await User.countDocuments({ totalXP: { $gt: 0 } });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        globalRank,
+        totalRanked,
+        username: user.username,
+        totalXP: user.totalXP,
+        rank: user.rank,
+        badges: user.badges,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
