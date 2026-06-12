@@ -1,8 +1,5 @@
 const scoreService = require('../services/scoreService');
-const DailyChallenge = require('../models/DailyChallenge');
-
-/** Returns today's UTC date as a YYYY-MM-DD string */
-const todayUTC = () => new Date().toISOString().slice(0, 10);
+const dailyChallengeService = require('../services/dailyChallengeService');
 
 /**
  * @desc    Submit a quiz score and calculate XP.
@@ -17,24 +14,18 @@ exports.submitScore = async (req, res, next) => {
     let bonusXP = 0;
 
     if (isDailyChallenge) {
-      // 1. Fetch today's challenge
-      const challenge = await DailyChallenge.findOne({ activeDate: todayUTC() });
-      if (!challenge) {
-        const error = new Error('No daily challenge has been set for today');
-        error.statusCode = 404;
-        return next(error);
-      }
-
-      // 2. Guard: user may only complete the daily challenge once per UTC day
-      const alreadyCompleted = req.user.lastDailyChallengeDate === todayUTC();
-      if (alreadyCompleted) {
-        const error = new Error('You have already completed today\'s daily challenge');
+      // Guard: user may only complete the daily challenge once per UTC day
+      const todayUTC = new Date().toISOString().slice(0, 10);
+      if (req.user.lastDailyChallengeDate === todayUTC) {
+        const error = new Error("You have already completed today's daily challenge");
         error.statusCode = 409;
         return next(error);
       }
 
-      bonusXP = challenge.bonusXP;
+      // Throws 404 via service if no challenge is set today
+      bonusXP = await dailyChallengeService.getTodayBonusXP();
     }
+
 
     const result = await scoreService.submitScore(
       req.user._id,
