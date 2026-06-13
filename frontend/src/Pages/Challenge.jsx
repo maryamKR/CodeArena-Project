@@ -110,7 +110,8 @@ socket.on('match_over', (data) => {
       socket.emit('submit_answer', {
         challengeId,
         questionId: questions[current]?._id,
-        selectedAnswer: answer,
+        answer: answer,
+        timeTakenSec: TIMER_MAX - timer,
       });
     }
   };
