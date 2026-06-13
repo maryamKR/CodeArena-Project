@@ -17,28 +17,46 @@ class ScoreService {
     const baseXP = Math.round(correctAnswers * BASE_XP_PER_ANSWER * difficultyMultiplier * speedBonus);
     const calculatedXP = baseXP + (bonusXP > 0 ? bonusXP : 0);
 
-    const todayUTC = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const todayUTC = now.toISOString().slice(0, 10);
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(now.getUTCDate() - 1);
+    const yesterdayUTC = yesterday.toISOString().slice(0, 10);
+
     const updateQuery = { $inc: { totalXP: calculatedXP, quizzesPlayed: 1 } };
     if (categoryId) {
       updateQuery.$inc[`categoryXP.${categoryId}`] = calculatedXP;
     }
+
+    // Streak Logic
+    const currentUser = await User.findById(userId).select('lastQuizDate streak lastDailyChallengeDate');
+    if (!currentUser) throw new Error('User not found');
+
+    let newStreak = currentUser.streak || 0;
+    if (currentUser.lastQuizDate !== todayUTC) {
+      if (currentUser.lastQuizDate === yesterdayUTC) {
+        newStreak += 1;
+      } else {
+        newStreak = 1;
+      }
+      updateQuery.$set = { lastQuizDate: todayUTC, streak: newStreak };
+    }
+
     let user;
     if (bonusXP > 0) {
-      updateQuery.$set = { lastDailyChallengeDate: todayUTC };
-      user = await User.findOneAndUpdate(
-        { _id: userId, lastDailyChallengeDate: { $ne: todayUTC } },
-        updateQuery,
-        { returnDocument: 'after' }
-      );
-      if (!user) {
+      if (currentUser.lastDailyChallengeDate === todayUTC) {
         const err = new Error("You have already completed today's daily challenge");
         err.statusCode = 409;
         throw err;
       }
+      
+      updateQuery.$set = { ...updateQuery.$set, lastDailyChallengeDate: todayUTC };
+      user = await User.findByIdAndUpdate(userId, updateQuery, { returnDocument: 'after' });
     } else {
       user = await User.findByIdAndUpdate(userId, updateQuery, { returnDocument: 'after' });
-      if (!user) throw new Error('User not found');
     }
+
+    if (!user) throw new Error('User not found');
 
     let newRank = 'Beginner';
     for (const { minXP, rank } of RANK_THRESHOLDS) {
@@ -65,6 +83,7 @@ class ScoreService {
       totalXP: user.totalXP,
       quizzesPlayed: user.quizzesPlayed,
       rank: user.rank,
+      streak: user.streak,
       breakdown: {
         correctAnswers,
         baseXPPerAnswer: BASE_XP_PER_ANSWER,

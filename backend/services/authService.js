@@ -6,7 +6,13 @@ const crypto = require("crypto");
 exports.register = async (userData) => {
   const { username, email, password } = userData;
 
-  const user = await User.create({ username, email, password });
+  const user = await User.create({ 
+    username, 
+    email, 
+    password,
+    streak: 0,
+    lastQuizDate: null
+  });
 
   return {
     user: {
@@ -17,6 +23,7 @@ exports.register = async (userData) => {
       quizzesPlayed: user.quizzesPlayed,
       badges: user.badges,
       rank: user.rank,
+      streak: user.streak,
       isOnline: user.isOnline,
       role: user.role,
       createdAt: user.createdAt,
@@ -31,7 +38,16 @@ exports.login = async (email, password) => {
     throw new Error("Invalid email or password");
   }
 
-  // Remove password from output
+  const now = new Date();
+  const todayUTC = now.toISOString().slice(0, 10);
+  const yesterday = new Date(now);
+  yesterday.setUTCDate(now.getUTCDate() - 1);
+  const yesterdayUTC = yesterday.toISOString().slice(0, 10);
+
+  if (user.lastQuizDate !== todayUTC && user.lastQuizDate !== yesterdayUTC && user.streak > 0) {
+    user.streak = 0;
+    await user.save();
+  }
 
   return {
     user: {
@@ -42,6 +58,7 @@ exports.login = async (email, password) => {
       quizzesPlayed: user.quizzesPlayed,
       badges: user.badges,
       rank: user.rank,
+      streak: user.streak,
       isOnline: user.isOnline,
       role: user.role,
       createdAt: user.createdAt,
@@ -134,13 +151,30 @@ exports.resetPassword = async (resetToken, password) => {
   user.resetPasswordExpire = undefined;
   await user.save();
 
-  // Remove password from output
+  const now = new Date();
+  const todayUTC = now.toISOString().slice(0, 10);
+  const yesterday = new Date(now);
+  yesterday.setUTCDate(now.getUTCDate() - 1);
+  const yesterdayUTC = yesterday.toISOString().slice(0, 10);
+
+  if (user.lastQuizDate !== todayUTC && user.lastQuizDate !== yesterdayUTC && user.streak > 0) {
+    user.streak = 0;
+    await user.save();
+  }
 
   return {
     user: {
       _id: user._id,
       username: user.username,
       email: user.email,
+      totalXP: user.totalXP,
+      quizzesPlayed: user.quizzesPlayed,
+      badges: user.badges,
+      rank: user.rank,
+      streak: user.streak,
+      isOnline: user.isOnline,
+      role: user.role,
+      createdAt: user.createdAt,
     },
     token: generateToken(user._id),
   };

@@ -1,4 +1,5 @@
 const Category = require('../models/Category');
+const Question = require('../models/Question');
 
 class CategoryService {
   /**
@@ -19,7 +20,24 @@ class CategoryService {
    * Get all available categories
    */
   async getAllCategories() {
-    return await Category.find({});
+    const categories = await Category.find({}).lean();
+    
+    // Get question counts for all categories in one go
+    const questionCounts = await Question.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ]);
+
+    const countMap = {};
+    questionCounts.forEach(item => {
+      if (item._id) {
+        countMap[item._id.toString()] = item.count;
+      }
+    });
+
+    return categories.map(cat => ({
+      ...cat,
+      questionCount: countMap[cat._id.toString()] || 0
+    }));
   }
 }
 

@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const { TOKEN_EXPIRY_DAYS } = require('../utils/constants');
+const User = require('../models/User');
 
 const cookieOptions = {
   httpOnly: true,
@@ -26,16 +27,30 @@ exports.loginUser = async (req, res, next) => {
 
 exports.getMe = async (req, res, next) => {
   try {
+    const user = req.user;
+    const now = new Date();
+    const todayUTC = now.toISOString().slice(0, 10);
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(now.getUTCDate() - 1);
+    const yesterdayUTC = yesterday.toISOString().slice(0, 10);
+
+    // Reset streak if user missed yesterday and today (so far)
+    if (user.lastQuizDate !== todayUTC && user.lastQuizDate !== yesterdayUTC && user.streak > 0) {
+      user.streak = 0;
+      await User.findByIdAndUpdate(user._id, { streak: 0 });
+    }
+
     res.status(200).json({
-      _id: req.user._id,
-      username: req.user.username,
-      email: req.user.email,
-      totalXP: req.user.totalXP,
-      quizzesPlayed: req.user.quizzesPlayed,
-      badges: req.user.badges,
-      rank: req.user.rank,
-      isOnline: req.user.isOnline,
-      createdAt: req.user.createdAt,
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      totalXP: user.totalXP,
+      quizzesPlayed: user.quizzesPlayed,
+      badges: user.badges,
+      rank: user.rank,
+      streak: user.streak,
+      isOnline: user.isOnline,
+      createdAt: user.createdAt,
     });
   } catch (err) { next(err); }
 };
