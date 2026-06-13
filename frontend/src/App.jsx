@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './Context/AuthContext';
 import ProtectedRoute from './Routes/ProtectedRoute';
-import Navbar from './Components/Navbar';
 import QuizPlay from './Pages/QuizPlay';
 import Home from './Pages/Home';
 import Login from './Pages/Login';
@@ -16,7 +15,6 @@ import Challenge from './Pages/Challenge';
 import Matchmaking from './Pages/Matchmaking';
 import ResetPassword from './Pages/ResetPassword';
 import ForgotPassword from './Pages/ForgotPassword';
-
 export default function App() {
   return (
     <AuthProvider>
@@ -37,9 +35,9 @@ export default function App() {
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/hall-of-fame" element={<HallOfFame />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/challenge" element={<Challenge />} />
             <Route path="/matchmaking" element={<Matchmaking />} />
             <Route path="/quiz/play" element={<QuizPlay />} />
+            <Route path="/match/:challengeId" element={<Challenge />} />
             
           </Route>
         </Routes>
