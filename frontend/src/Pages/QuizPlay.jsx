@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -16,7 +16,7 @@ const TIMER_MAX = 30;
 export default function Quiz() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
 
     const category = location.state?.category || 'js';
     const difficulty = location.state?.difficulty || 'Easy';
@@ -32,6 +32,7 @@ export default function Quiz() {
     const [error, setError] = useState('');
     const [xpGain, setXpGain] = useState(null);
     const [exploding, setExploding] = useState(false);
+    const [answers, setAnswers] = useState([]);
 
     // Fetch questions
     useEffect(() => {
@@ -59,15 +60,25 @@ export default function Quiz() {
         return '#f92672';
     };
 
-    const handleAnswer = useCallback((answer) => {
+    const handleAnswer = useCallback(async (answer) => {
         if (answered) return;
         setAnswered(true);
         setSelected(answer);
-        const correct = questions[current]?.correct_answer === answer;
-        if (correct) {
+        setAnswers(prev => [...prev, { questionId: questions[current]._id, selectedAnswer: answer }]); // ✅ add here
+        try {
+            const res = await api.post(`/questions/${questions[current]._id}/check`, {
+            selectedAnswer: answer
+            });
+            if (res.data.correct) {
             setScore(s => s + 1);
             setXpGain(10);
             setTimeout(() => setXpGain(null), 1500);
+            }
+            setQuestions(prev => prev.map((q, i) => 
+            i === current ? { ...q, correct_answer: res.data.correctAnswer } : q
+            ));
+        } catch {
+            // fallback
         }
     }, [answered, questions, current]);
 
@@ -75,11 +86,12 @@ export default function Quiz() {
         if (current + 1 >= questions.length) {
             try {
                 const res = await api.post('/scores', {
-                    correctAnswers: score,
+                    answers,
                     difficulty,
                     timeLeft: timer,
-                    timeLimit: TIMER_MAX,
+                    timeLimit: TIMER_MAX * questions.length,
                 });
+                await refreshUser();
                 navigate('/results', {
                     state: {
                         result: res.data.data,  // XP, newRank etc from Assma
@@ -101,7 +113,7 @@ export default function Quiz() {
         setSelected(null);
         setAnswered(false);
         setTimer(TIMER_MAX);
-    }, [current, questions.length, score, timer, category, difficulty, navigate]);
+    }, [current, questions.length, score, timer, category, difficulty, navigate, answers, refreshUser]);
 
 
     // Timer
