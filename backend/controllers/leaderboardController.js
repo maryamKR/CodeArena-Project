@@ -81,7 +81,7 @@ exports.getLeaderboard = async (req, res, next) => {
     const topUsers = await User.find(matchQuery)
       .sort(sortQuery)
       .limit(limit)
-      .select('username totalXP categoryXP rank badges isOnline');
+      .select('username totalXP categoryXP rank badges isOnline quizzesPlayed');
 
     res.status(200).json({ success: true, data: topUsers });
   } catch (error) {
