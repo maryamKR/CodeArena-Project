@@ -21,6 +21,7 @@ export default function Quiz() {
     const category = location.state?.category || 'js';
     const difficulty = location.state?.difficulty || 'Easy';
     const categoryId = location.state?.categoryId || null;
+    const isDailyChallenge = location.state?.isDailyChallenge || false;
 
     const [questions, setQuestions] = useState([]);
     const [current, setCurrent] = useState(0);
@@ -92,6 +93,7 @@ export default function Quiz() {
                     timeLeft: timer,
                     timeLimit: TIMER_MAX * questions.length,
                     categoryId,
+                    isDailyChallenge,
                 });
                 await refreshUser();
                 navigate('/results', {

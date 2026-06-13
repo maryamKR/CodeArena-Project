@@ -294,7 +294,15 @@ export default function Home() {
                 </span>
                 <button
                   style={styles.dcAccept}
-                  onClick={() => navigate(`/quiz?category=${dailyChallenge.category?.slug}&difficulty=${dailyChallenge.difficulty}&daily=true`)}
+                  onClick={() => navigate('/quiz/play', { 
+                    state: { 
+                      category: dailyChallenge.category?.slug,
+                      difficulty: dailyChallenge.difficulty,
+                      categoryId: dailyChallenge.category?._id,
+                      isDailyChallenge: true,
+                      bonusXP: dailyChallenge.bonusXP,
+                    } 
+                  })}
                   onMouseEnter={e => e.currentTarget.style.background = '#d4c95f'}
                   onMouseLeave={e => e.currentTarget.style.background = '#e6db74'}
                 >
