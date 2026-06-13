@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import api from '../API/axios';
 
 const NAV_LINKS = [
@@ -11,33 +11,21 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-const LEADERBOARD = [
-  { rank: 1, username: 'n00bslayer', xp: 1240 },
-  { rank: 2, username: 'bytewizard',  xp: 980  },
-  { rank: 3, username: 'codesensei',  xp: 870  },
-  { rank: 4, username: 'pymaster',    xp: 750  },
-  { rank: 5, username: 'sqlninja',    xp: 620  },
-  { rank: 6, username: 'devguru',     xp: 580  },
-  { rank: 7, username: 'hackerpro',   xp: 510  },
-  { rank: 8, username: 'loopbreaker', xp: 470  },
-  { rank: 9, username: 'nullpointer', xp: 430  },
-  { rank: 10, username: 'stackover',  xp: 390  },
-];
 
 
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
-    const [leaderboard, setLeaderboard] = useState([]);  // ← add this line
+    const [leaderboard, setLeaderboard] = useState([]); 
 
     useEffect(() => {
         if (!user?._id) return;
         api.get('/leaderboard')
-            .then(res => setLeaderboard(Array.isArray(res.data) ? res.data.slice(0, 10) : []))
+            .then(res => setLeaderboard(res.data.data?.slice(0, 10) || []))
             .catch(() => setLeaderboard([]));
-        api.get(`/history/${user._id}`)
-            .then(res => setHistory(Array.isArray(res.data) ? res.data.slice(0, 5) : []))
+        api.get(`/history/${user.username}`)
+            .then(res => setHistory(res.data.data?.slice(0, 5) || []))
             .catch(() => setHistory([]));
     }, [user]);
 
@@ -181,10 +169,10 @@ export default function Dashboard() {
                             ) : (
                                 history.map((h, i) => (
                                     <div key={i} style={{ ...styles.activityRow, borderBottom: i < history.length - 1 ? '1px solid #3e3d32' : 'none' }}>
-                                        <div style={{ color: '#66d9e8', fontSize: '12px' }}>{h.category}</div>
+                                        <div style={{ color: '#66d9e8', fontSize: '12px' }}>{h.category?.name || '?'}</div>
                                         <div style={{ color: '#75715e', fontSize: '11px' }}>{h.difficulty}</div>
-                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px' }}>{h.score}/{h.total}</div>
-                                        <div style={{ color: '#e6db74', fontSize: '11px' }}>+{h.xpEarned} XP</div>
+                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px' }}>{h.score}/{h.correctAnswers}/10</div>
+                                        <div style={{ color: '#e6db74', fontSize: '11px' }}>+{h.earnedXP} XP</div>
                                     </div>
                                 ))
                             )}
@@ -199,13 +187,13 @@ export default function Dashboard() {
                         <div style={styles.leaderCard}>
                             {leaderboard.map((p, i) => (
                                 <div key={p.rank} style={{ ...styles.leaderRow, borderBottom: i < 2 ? '1px solid #3e3d32' : 'none' }}>
-                                    <div style={styles.leaderRank}>#{p.rank}</div>
+                                    <div style={styles.leaderRank}>#{i + 1}</div>
                                     <div style={styles.leaderName}>{p.username}</div>
                                     <div style={styles.leaderXP}>
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="#e6db74" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
                                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                                         </svg>
-                                        {p.xp}
+                                        {p.totalXP}
                                     </div>
                                 </div>
                             ))}

@@ -32,6 +32,7 @@ export default function Quiz() {
                 name: cat.name,
                 short: cat.slug.toUpperCase().slice(0, 3),
                 color: cat.color || '#a6e22e',
+                _id: cat._id,
                 })));
             }
             })
@@ -40,9 +41,8 @@ export default function Quiz() {
 
     const handleStart = () => {
         if (!category) return;
-        const selectedCat = categories.find(c => c.slug === category);
         if (mode === 'solo') {
-            navigate('/quiz/play', { state: { category, difficulty, categoryId: selectedCat?._id } });
+            navigate('/quiz/play', { state: { category, difficulty, categoryId: categories.find(c => c.slug === category)?._id } });
         } else if (mode === '1v1') {
             navigate('/matchmaking', { state: { category, difficulty } });
         }
