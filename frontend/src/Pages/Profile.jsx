@@ -12,10 +12,14 @@ const NAV_LINKS = [
 ];
 
 const BADGE_COLORS = {
-  'First Quiz': '#a6e22e',
-  'Speed Demon': '#f92672',
+  'First Blood': '#f92672',
   'Perfect Score': '#e6db74',
-  '10 Wins': '#66d9e8',
+  'Speed Demon': '#66d9e8',
+  '10 Wins': '#a6e22e',
+  'Centurion': '#e6db74',
+  'XP Master': '#f92672',
+  'Streak 3': '#66d9e8',
+  'Streak 7': '#a6e22e',
 };
 
 export default function Profile() {
@@ -116,7 +120,7 @@ export default function Profile() {
                 { label: 'Quizzes',     val: user?.quizzesPlayed || 0,    color: '#a6e22e' },
                 { label: 'Global Rank', val: myRank ? `#${myRank.globalRank}` : '-', color: '#66d9e8' },
                 { label: 'Badges',      val: user?.badges?.length || 0,   color: '#f92672' },
-              ].map((stat, i) => (
+              ].map((stat) => (
                 <div key={stat.label} style={styles.statCard}>
                   <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
                   <div style={styles.statLabel}>{stat.label}</div>
