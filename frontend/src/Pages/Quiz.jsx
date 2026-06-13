@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import { useLocation } from 'react-router-dom';
+import api from '../api/axios';
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
@@ -20,21 +21,28 @@ export default function Quiz() {
     const [mode, setMode] = useState(location.state?.mode || null);
     const [category, setCategory] = useState(null);
     const [difficulty, setDifficulty] = useState('Easy');
-    const [categories] = useState([
-        { slug: 'js', name: 'JavaScript', short: 'JS', color: '#e6db74' },
-        { slug: 'py', name: 'Python', short: 'PY', color: '#66d9e8' },
-        { slug: 'sql', name: 'SQL', short: 'SQL', color: '#f92672' },
-        { slug: 'algo', name: 'Algorithms', short: 'AL', color: '#a6e22e' },
-        { slug: 'react', name: 'React', short: 'RE', color: '#66d9e8' },
-        { slug: 'node', name: 'Node.js', short: 'NO', color: '#a6e22e' },
-        { slug: 'devops', name: 'DevOps', short: 'DO', color: '#e6db74' },
-        { slug: 'html', name: 'HTML/CSS', short: 'HT', color: '#f92672' },
-    ]);
+    const [categories, setCategories] = useState([]);
+
+    useEffect(() => {
+        api.get('/categories')
+            .then(res => {
+            if (Array.isArray(res.data) && res.data.length > 0) {
+                setCategories(res.data.map(cat => ({
+                slug: cat.slug,
+                name: cat.name,
+                short: cat.slug.toUpperCase().slice(0, 3),
+                color: cat.color || '#a6e22e',
+                })));
+            }
+            })
+            .catch(() => {});
+    }, []);
 
     const handleStart = () => {
         if (!category) return;
+        const selectedCat = categories.find(c => c.slug === category);
         if (mode === 'solo') {
-            navigate('/quiz/play', { state: { category, difficulty } });
+            navigate('/quiz/play', { state: { category, difficulty, categoryId: selectedCat?._id } });
         } else if (mode === '1v1') {
             navigate('/matchmaking', { state: { category, difficulty } });
         }
