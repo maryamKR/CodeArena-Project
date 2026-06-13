@@ -11,8 +11,6 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-const CATEGORIES = ['All', 'js', 'py', 'sql', 'algo'];
-const DIFFICULTIES = ['All', 'easy', 'medium', 'hard'];
 
 export default function Leaderboard() {
     const navigate = useNavigate();
@@ -22,24 +20,37 @@ export default function Leaderboard() {
     const [error, setError] = useState('');
     const [category, setCategory] = useState('All');
     const [difficulty, setDifficulty] = useState('All');
+    const [categoryFilters, setCategoryFilters] = useState(['All']);
+    const [difficultyFilters] = useState(['All', 'Easy', 'Medium', 'Hard']);
+
 
     useEffect(() => {
-        const fetchLeaderboard = async () => {
-            setLoading(true);
-            try {
-                const params = {};
-                if (category !== 'All') params.category = category;
-                if (difficulty !== 'All') params.difficulty = difficulty;
-                const res = await api.get('/leaderboard', { params });
-                setPlayers(res.data.data || []);
-            } catch {
-                setError('Failed to load leaderboard');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchLeaderboard();
+    const fetchLeaderboard = async () => {
+        setLoading(true);
+        try {
+        const params = {};
+        if (category !== 'All') params.category = category;
+        if (difficulty !== 'All') params.difficulty = difficulty;
+        const res = await api.get('/leaderboard', { params });
+        setPlayers(res.data.data || []);
+        } catch {
+        setError('Failed to load leaderboard');
+        } finally {
+        setLoading(false);
+        }
+    };
+    fetchLeaderboard();
     }, [category, difficulty]);
+
+    useEffect(() => {
+    api.get('/categories')
+        .then(res => {
+        if (Array.isArray(res.data)) {
+            setCategoryFilters(['All', ...res.data.map(c => c.slug)]);
+        }
+        })
+        .catch(() => {});
+    }, []);
 
     const getRankStyle = (rank) => {
         if (rank === 1) return { color: '#e6db74', borderLeft: '4px solid #e6db74' };
@@ -105,7 +116,7 @@ export default function Leaderboard() {
                 <div style={styles.filtersRow}>
                     <div style={styles.filterGroup}>
                         <span style={styles.filterLabel}>// category:</span>
-                        {CATEGORIES.map(cat => (
+                        {categoryFilters.map(cat => (
                             <button
                                 key={cat}
                                 style={{
@@ -120,7 +131,7 @@ export default function Leaderboard() {
                     </div>
                     <div style={styles.filterGroup}>
                         <span style={styles.filterLabel}>// difficulty:</span>
-                        {DIFFICULTIES.map(diff => (
+                        {difficultyFilters.map(diff => (
                             <button
                                 key={diff}
                                 style={{
