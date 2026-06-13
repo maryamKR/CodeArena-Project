@@ -17,7 +17,8 @@ export default function Dashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
-    const [leaderboard, setLeaderboard] = useState([]); 
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [myRank, setMyRank] = useState(null);
 
     useEffect(() => {
         if (!user?._id) return;
@@ -27,7 +28,10 @@ export default function Dashboard() {
         api.get(`/history/${user.username}`)
             .then(res => setHistory(res.data.data?.slice(0, 5) || []))
             .catch(() => setHistory([]));
-    }, [user]);
+        api.get('/leaderboard/me')
+            .then(res => setMyRank(res.data.data))
+            .catch(() => {});
+    },[user]);
 
     const handleLogout = async () => {
         await logout();
@@ -97,7 +101,7 @@ export default function Dashboard() {
                     {[
                         { label: 'Total XP', val: user?.totalXP || 0, color: '#e6db74' },
                         { label: 'Quizzes Played', val: user?.quizzesPlayed || 0, color: '#a6e22e' },
-                        { label: 'Global Rank', val: `#${user?.globalRank || '-'}`, color: '#66d9e8' },
+                        { label: 'Global Rank', val: myRank ? `#${myRank.globalRank}` : '-', color: '#66d9e8' },
                         { label: 'Badges', val: user?.badges?.length || 0, color: '#f92672' },
                         { label: 'Streak', val: `${user?.streak || 0} days`, color: '#e6db74' },
                     ].map((stat, i) => (
