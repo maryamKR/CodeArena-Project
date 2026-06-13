@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -23,20 +23,25 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myRank, setMyRank] = useState(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await api.get(`/history/${user?._id}`);
-        setHistory(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
+        const res = await api.get(`/history/${user?.username}`);
+        setHistory(res.data.data || []);
+      } catch {
         setHistory([]);
       } finally {
         setLoading(false);
       }
     };
     if (user?._id) fetchHistory();
-  }, [user]);
+
+    api.get('/leaderboard/me')
+        .then(res => setMyRank(res.data.data))
+        .catch(() => {});
+    }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -109,7 +114,7 @@ export default function Profile() {
               {[
                 { label: 'Total XP',    val: user?.totalXP || 0,          color: '#e6db74' },
                 { label: 'Quizzes',     val: user?.quizzesPlayed || 0,    color: '#a6e22e' },
-                { label: 'Global Rank', val: `#${user?.globalRank || '-'}`, color: '#66d9e8' },
+                { label: 'Global Rank', val: myRank ? `#${myRank.globalRank}` : '-', color: '#66d9e8' },
                 { label: 'Badges',      val: user?.badges?.length || 0,   color: '#f92672' },
               ].map((stat, i) => (
                 <div key={stat.label} style={styles.statCard}>
@@ -152,16 +157,16 @@ export default function Profile() {
                 {history.map((h, i) => (
                   <div key={i} style={{ ...styles.historyRow, borderBottom: i < history.length - 1 ? '2px solid #3e3d32' : 'none' }}>
                     <div style={styles.historyLeft}>
-                      <div style={styles.historyCategory}>{h.category}</div>
+                      <div style={styles.historyCategory}>{h.category?.name || '?'}</div>
                       <div style={styles.historyDiff}>{h.difficulty}</div>
                     </div>
                     <div style={styles.historyCenter}>
                       <div style={styles.historyScore}>
-                        <span style={{ color: '#a6e22e' }}>{h.score}</span>/{h.total}
+                        <span style={{ color: '#a6e22e' }}>{h.correctAnswers}</span>/10
                       </div>
                       <div style={styles.historyDate}>{new Date(h.createdAt).toLocaleDateString()}</div>
                     </div>
-                    <div style={{ ...styles.historyXP, color: '#e6db74' }}>+{h.xpEarned} XP</div>
+                    <div style={{ ...styles.historyXP, color: '#e6db74' }}>+{h.earnedXP} XP</div>
                   </div>
                 ))}
               </div>
