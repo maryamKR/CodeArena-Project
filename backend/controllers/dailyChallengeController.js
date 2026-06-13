@@ -1,4 +1,5 @@
 const dailyChallengeService = require('../services/dailyChallengeService');
+const User = require('../models/User');
 
 /**
  * @desc    Get today's active daily challenge
@@ -8,7 +9,13 @@ const dailyChallengeService = require('../services/dailyChallengeService');
 exports.getTodayChallenge = async (req, res, next) => {
   try {
     const data = await dailyChallengeService.getToday();
-    res.status(200).json({ success: true, data });
+
+    // Check whether the authenticated user already completed today's challenge
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    const user = await User.findById(req.user._id).select('lastDailyChallengeDate').lean();
+    const completedToday = user?.lastDailyChallengeDate === todayUTC;
+
+    res.status(200).json({ success: true, data: { ...data, completedToday } });
   } catch (error) {
     next(error);
   }
