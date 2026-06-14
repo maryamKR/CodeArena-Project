@@ -1,18 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
+import socket from '../socket/socket';
+import api from '../api/axios';
 
 const TIMER_MAX = 30;
-const TOTAL_QUESTIONS = 5;
-
-// Mock questions for UI demo (replace with real socket data later)
-const MOCK_QUESTIONS = [
-  { id: 1, text: 'JavaScript is a statically typed language.', correct_answer: false },
-  { id: 2, text: 'React is developed by Facebook.', correct_answer: true },
-  { id: 3, text: 'CSS stands for Cascading Style Sheets.', correct_answer: true },
-  { id: 4, text: 'Python is faster than C++ in execution speed.', correct_answer: false },
-  { id: 5, text: 'SQL is used to query relational databases.', correct_answer: true },
-];
 
 export default function Challenge() {
   const navigate = useNavigate();
@@ -21,6 +13,8 @@ export default function Challenge() {
 
   const category = location.state?.category || 'js';
   const difficulty = location.state?.difficulty || 'easy';
+  const challengeId = location.state?.challengeId || null;
+  const [opponent, setOpponent] = useState(location.state?.opponent || null);
 
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -30,8 +24,10 @@ export default function Challenge() {
   const [oppScore, setOppScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const question = MOCK_QUESTIONS[current];
+  const question = questions[current];
 
   const getTimerColor = () => {
     if (timer > 20) return '#a6e22e';
@@ -39,38 +35,100 @@ export default function Challenge() {
     return '#f92672';
   };
 
-  // Simulate opponent answering
+  
+
   useEffect(() => {
-    if (answered || gameOver) return;
-    const oppDelay = Math.random() * 10000 + 3000;
-    const timeout = setTimeout(() => {
-      const oppCorrect = Math.random() > 0.4;
-      if (oppCorrect) setOppScore(s => s + 1);
-    }, oppDelay);
-    return () => clearTimeout(timeout);
-  }, [current, answered, gameOver]);
+    socket.connect();
+
+    
+    socket.on('connect', () => {
+      socket.emit('join_match', { challengeId });
+    });
+
+    // if already connected
+    if (socket.connected) {
+      socket.emit('join_match', { challengeId });
+    }
+
+    socket.on('match_ready', (data) => {
+      setQuestions(data.questions);
+      setLoading(false);
+    });
+
+    socket.on('opponent_progress', (data) => {
+      setOppScore(data.questionsAnswered);
+    });
+
+socket.on('match_over', (data) => {
+  const myResult = data.results?.[String(user._id)];
+  const oppResult = Object.entries(data.results || {})
+    .find(([id]) => id !== String(user._id))?.[1];
+
+  if (myResult) setMyScore(myResult.correctCount || 0);
+  if (oppResult) setOppScore(oppResult.correctCount || 0);
+
+  if (String(data.winnerId) === String(user._id)) {
+    setWinner('you');
+  } else if (data.forfeit && String(data.forfeitedBy) !== String(user._id)) {
+    setWinner('you');
+  } else {
+    setWinner('opponent');
+  }
+  setGameOver(true);
+});
+
+    return () => {
+      socket.off('connect');
+      socket.off('match_ready');
+      socket.off('opponent_progress');
+      socket.off('match_over');
+      socket.disconnect();
+    };
+  }, [challengeId]);
+
+
+  const handleAnswer = async (answer) => {
+    if (answered) return;
+    setAnswered(true);
+    setSelected(answer);
+
+    if (answer !== null) {
+      try {
+        const res = await api.post(`/questions/${questions[current]._id}/check`, {
+          selectedAnswer: answer
+        });
+        if (res.data.correct) {
+          setMyScore(s => s + 1);
+        }
+        setQuestions(prev => prev.map((q, i) =>
+          i === current ? { ...q, correct_answer: res.data.correctAnswer } : q
+        ));
+      } catch {
+        // fallback
+      }
+
+      socket.emit('submit_answer', {
+        challengeId,
+        questionId: questions[current]?._id,
+        answer: answer,
+        timeTakenSec: TIMER_MAX - timer,
+      });
+    }
+  };
 
   // Timer
   useEffect(() => {
     if (answered || gameOver) return;
     if (timer === 0) {
-      handleAnswer(null);
+      setTimeout(() => handleAnswer(null), 0);;
       return;
     }
     const interval = setInterval(() => setTimer(t => t - 1), 1000);
     return () => clearInterval(interval);
   }, [timer, answered, gameOver]);
 
-  const handleAnswer = (answer) => {
-    if (answered) return;
-    setAnswered(true);
-    setSelected(answer);
-    const correct = answer === question?.correct_answer;
-    if (correct) setMyScore(s => s + 1);
-  };
-
   const handleNext = () => {
-    if (current + 1 >= MOCK_QUESTIONS.length) {
+    if (current + 1 >= questions.length) {
       const finalMyScore = myScore + (selected === question?.correct_answer ? 1 : 0);
       if (finalMyScore > oppScore) setWinner('you');
       else if (oppScore > finalMyScore) setWinner('opponent');
@@ -95,6 +153,13 @@ export default function Challenge() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [answered, gameOver]);
 
+  if (loading) return (
+  <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ color: '#75715e', fontFamily: "'Space Mono', monospace" }}>
+      {'// waiting_for_opponent...'}
+    </div>
+  </div>
+  );
   if (gameOver) return (
     <div style={styles.page}>
       <nav style={styles.nav}>
@@ -128,7 +193,7 @@ export default function Challenge() {
             <div style={styles.vsText}>VS</div>
             <div style={styles.finalPlayer}>
               <div style={{ ...styles.finalAvatar, background: '#f92672', color: '#fff' }}>?</div>
-              <div style={styles.finalName}>opponent</div>
+              <div style={styles.finalName}>{opponent?.username || 'opponent'}</div>
               <div style={{ ...styles.finalScore, color: '#f92672' }}>{oppScore}</div>
             </div>
           </div>
@@ -168,7 +233,7 @@ export default function Challenge() {
 
       {/* Progress bar */}
       <div style={styles.progressBar}>
-        <div style={{ ...styles.progressFill, width: `${(current / MOCK_QUESTIONS.length) * 100}%`, background: getTimerColor() }} />
+        <div style={{ ...styles.progressFill, width: `${(current / questions.length) * 100}%`, background: getTimerColor() }} />
       </div>
 
       <div style={styles.content}>
@@ -188,12 +253,12 @@ export default function Challenge() {
               <div style={{ ...styles.timerNum, color: getTimerColor() }}>{timer}</div>
               <div style={styles.timerLabel}>SEC</div>
             </div>
-            <div style={styles.questionCounter}>Q{current + 1}/{MOCK_QUESTIONS.length}</div>
+            <div style={styles.questionCounter}>Q{current + 1}/{questions.length}</div>
           </div>
 
           <div style={styles.scorePlayer}>
             <div style={{ ...styles.scoreAvatar, background: '#f92672', color: '#fff' }}>?</div>
-            <div style={styles.scoreName}>opponent</div>
+            <div style={styles.scoreName}>{opponent?.username || 'opponent'}</div>
             <div style={{ ...styles.scoreNum, color: '#f92672' }}>{oppScore}</div>
           </div>
         </div>
@@ -249,7 +314,7 @@ export default function Challenge() {
               onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
               onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
             >
-              {current + 1 >= MOCK_QUESTIONS.length ? 'VIEW RESULTS →' : 'NEXT →'}
+              {current + 1 >= questions.length ? 'VIEW RESULTS →' : 'NEXT →'}
             </button>
           </div>
         )}

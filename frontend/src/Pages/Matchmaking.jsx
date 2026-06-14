@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
+import socket from '../socket/socket';
+import api from '../api/axios';
 
 const SEARCHING_MESSAGES = [
   '// scanning_arena_for_opponents...',
@@ -41,20 +43,46 @@ export default function Matchmaking() {
     return () => clearInterval(interval);
   }, [status]);
 
-  // Simulate match found after 5 seconds (replace with real socket later)
+  // socket
+  const [opponent, setOpponent] = useState(null);
+  const [challengeId, setChallengeId] = useState(null);
+
   useEffect(() => {
-    if (status !== 'searching') return;
-    const timeout = setTimeout(() => {
-      setStatus('found');
-    }, 5000);
-    return () => clearTimeout(timeout);
-  }, [status]);
+  if (!user) return;
+
+  // Connect socket first
+  socket.connect();
+
+  
+  socket.on('connect', () => {
+    api.post('/matchmaking/join', {
+      difficulty,
+      socketId: socket.id, 
+    }).catch(() => {});
+  });
+
+  // Listen for match found
+  socket.on('matched', (data) => {
+    console.log('matched data:', data);
+    setOpponent(data.opponent);
+    setChallengeId(data.challengeId);
+    setStatus('found');
+  });
+
+  // Cleanup
+  return () => {
+    socket.off('connect');
+    socket.off('matched');
+    api.delete('/matchmaking/leave').catch(() => {});
+    socket.disconnect();
+  };
+}, [user]);
 
   // Countdown after match found
   useEffect(() => {
     if (status !== 'found') return;
     if (countdown === 0) {
-      navigate('/challenge', { state: { category, difficulty } });
+      navigate(`/match/${challengeId}`, { state: { category, difficulty, challengeId, opponent: opponent } });
       return;
     }
     const timeout = setTimeout(() => setCountdown(c => c - 1), 1000);
@@ -152,8 +180,8 @@ export default function Matchmaking() {
                 {/* Opponent */}
                 <div style={styles.playerCard}>
                   <div style={{ ...styles.foundAvatar, background: '#f92672', color: '#fff' }}>?</div>
-                  <div style={styles.foundName}>opponent</div>
-                  <div style={styles.foundRank}>found!</div>
+                  <div style={styles.foundName}>{opponent?.username || 'opponent'}</div>
+                  <div style={styles.foundRank}>{opponent?.rank || 'found!'}</div>
                 </div>
               </div>
 

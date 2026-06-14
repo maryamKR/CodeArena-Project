@@ -134,8 +134,10 @@ class MatchService {
 
     const isCorrect = question.correct_answer === answerBoolean;
 
-    playerState.answers.push({ questionId, isCorrect, timeTakenSec });
-    playerState.timeTaken += timeTakenSec;
+    const validTimeTakenSec = typeof timeTakenSec === 'number' && !isNaN(timeTakenSec) ? timeTakenSec : 0;
+
+    playerState.answers.push({ questionId, isCorrect, timeTakenSec: validTimeTakenSec });
+    playerState.timeTaken += validTimeTakenSec;
     if (isCorrect) {
       playerState.correctCount += 1;
     }
