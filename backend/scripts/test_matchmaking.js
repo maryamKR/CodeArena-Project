@@ -93,6 +93,7 @@ async function runTest() {
       socketA.on('match_over', (data) => {
         console.log('\n--- MATCH OVER ---');
         console.log(`Winner ID: ${data.winnerId}`);
+        console.log(`Category Name: ${data.categoryName}`);
         console.log('Results:', JSON.stringify(data.results, null, 2));
         resolve();
       });
