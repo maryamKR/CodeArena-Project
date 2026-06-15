@@ -15,6 +15,7 @@ import Challenge from './Pages/Challenge';
 import Matchmaking from './Pages/Matchmaking';
 import ResetPassword from './Pages/ResetPassword';
 import ForgotPassword from './Pages/ForgotPassword';
+
 export default function App() {
   return (
     <AuthProvider>
