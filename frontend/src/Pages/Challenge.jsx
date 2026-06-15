@@ -4,7 +4,7 @@ import { useAuth } from '../Context/useAuth';
 import socket from '../socket/socket';
 import api from '../api/axios';
 
-const TIMER_MAX = 30;
+const TIMER_MAX = 10;
 
 export default function Challenge() {
   const navigate = useNavigate();
@@ -30,8 +30,8 @@ export default function Challenge() {
   const question = questions[current];
 
   const getTimerColor = () => {
-    if (timer > 20) return '#a6e22e';
-    if (timer > 10) return '#e6db74';
+    if (timer > 6) return '#a6e22e';
+    if (timer > 3) return '#e6db74';
     return '#f92672';
   };
 
@@ -82,7 +82,6 @@ socket.on('match_over', (data) => {
       socket.off('match_ready');
       socket.off('opponent_progress');
       socket.off('match_over');
-      socket.disconnect();
     };
   }, [challengeId]);
 
