@@ -6,7 +6,7 @@ export default function Results() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { score = 0, total = 0, category = 'js', difficulty = 'easy' } = location.state || {};
+  const { score = 0, total = 0, category = 'js', difficulty = 'easy', review = [] } = location.state || {};
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
   const xpEarned = score * 10;
 
@@ -19,6 +19,7 @@ export default function Results() {
   };
 
   const msg = getMessage();
+  const fmt = (b) => (b ? 'TRUE' : 'FALSE');
 
   return (
     <div style={styles.page}>
@@ -79,6 +80,45 @@ export default function Results() {
             </div>
           </div>
         </div>
+
+        {/* Answer review */}
+        {review.length > 0 && (
+          <div style={styles.reviewCard}>
+            <div style={styles.reviewHeader}>{'// answer_review'}</div>
+            {review.map((q, i) => (
+              <div
+                key={i}
+                style={{
+                  ...styles.reviewRow,
+                  borderLeft: `4px solid ${q.isCorrect ? '#a6e22e' : '#f92672'}`,
+                  borderBottom: i < review.length - 1 ? '2px solid #3e3d32' : 'none',
+                }}
+              >
+                <div style={styles.reviewQNum}>
+                  <span style={{ color: q.isCorrect ? '#a6e22e' : '#f92672', fontWeight: 700 }}>
+                    {q.isCorrect ? '✓' : '✗'}
+                  </span>{' '}
+                  q{i + 1}
+                </div>
+                <div style={styles.reviewText}>{q.text}</div>
+                <div style={styles.reviewAnswers}>
+                  <span style={{
+                    ...styles.reviewPill,
+                    color: q.isCorrect ? '#a6e22e' : '#f92672',
+                    borderColor: q.isCorrect ? '#a6e22e' : '#f92672',
+                  }}>
+                    you: {fmt(q.selected)}
+                  </span>
+                  {!q.isCorrect && (
+                    <span style={{ ...styles.reviewPill, color: '#a6e22e', borderColor: '#a6e22e' }}>
+                      correct: {fmt(q.correct)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Action buttons */}
         <div style={styles.actionsRow}>
@@ -141,6 +181,14 @@ const styles = {
   breakdownItem: { display: 'flex', flexDirection: 'column', gap: '4px' },
   breakdownVal: { fontSize: '20px', fontWeight: 700, color: '#a6e22e' },
   breakdownLabel: { fontSize: '10px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px' },
+
+  reviewCard: { background: '#1e1f1a', border: '3px solid #75715e', marginBottom: '24px', boxShadow: '6px 6px 0 #3e3d32' },
+  reviewHeader: { padding: '12px 16px', borderBottom: '3px solid #75715e', fontSize: '11px', color: '#75715e', letterSpacing: '2px' },
+  reviewRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 16px' },
+  reviewQNum: { width: '48px', fontSize: '12px', color: '#75715e', flexShrink: 0 },
+  reviewText: { flex: 1, fontSize: '13px', color: '#f8f8f2', lineHeight: 1.4 },
+  reviewAnswers: { display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  reviewPill: { fontSize: '10px', fontWeight: 700, padding: '2px 8px', border: '2px solid', letterSpacing: '1px' },
 
   actionsRow: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
   playAgainBtn: { fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '12px 24px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },

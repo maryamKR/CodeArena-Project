@@ -1,4 +1,5 @@
 const matchmakingService = require('../services/matchmakingService');
+const Category = require('../models/Category');
 
 /**
  * @desc  Join the matchmaking queue
@@ -10,7 +11,7 @@ const matchmakingService = require('../services/matchmakingService');
  */
 exports.joinQueue = async (req, res, next) => {
   try {
-    const { difficulty = 'Easy' } = req.body;
+    const { difficulty = 'Easy', categorySlug } = req.body;
     const user = req.user;
 
     // Retrieve the io instance attached to the app
@@ -26,7 +27,13 @@ exports.joinQueue = async (req, res, next) => {
       });
     }
 
-    const result = await matchmakingService.joinQueue(user, socketId, difficulty, io);
+    let categoryId = null;
+    if (categorySlug && categorySlug !== 'random') {
+      const categoryDoc = await Category.findOne({ slug: categorySlug });
+      if (categoryDoc) categoryId = categoryDoc._id;
+    }
+
+    const result = await matchmakingService.joinQueue(user, socketId, difficulty, categoryId, io);
 
     if (result.alreadyQueued) {
       return res.status(409).json({

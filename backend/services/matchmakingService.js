@@ -13,7 +13,7 @@ class MatchmakingService {
    *
    * @returns {{ queued: true } | { matched: true, challengeId: string }}
    */
-  async joinQueue(user, socketId, difficulty = 'Easy', io) {
+  async joinQueue(user, socketId, difficulty = 'Easy', categoryId = null, io) {
     // Prevent duplicate queue entries
     if (queue.some(p => p.userId === user._id.toString())) {
       return { alreadyQueued: true };
@@ -25,12 +25,15 @@ class MatchmakingService {
       rank: user.rank,
       socketId,
       difficulty,
+      categoryId,
       joinedAt: Date.now(),
     };
 
-    // Try to find a compatible opponent (same difficulty, different user)
+    // Try to find a compatible opponent (same difficulty, same category, different user)
     const opponentIndex = queue.findIndex(
-      p => p.difficulty === difficulty && p.userId !== user._id.toString()
+      p => p.difficulty === difficulty && 
+           (p.categoryId ? p.categoryId.toString() : null) === (categoryId ? categoryId.toString() : null) && 
+           p.userId !== user._id.toString()
     );
 
     if (opponentIndex === -1) {
@@ -47,7 +50,7 @@ class MatchmakingService {
       sender: user._id,
       receiver: opponent.userId,
       difficulty,
-      category: null,
+      category: categoryId,
       message: 'Matchmaking challenge',
       status: 'accepted',
     });

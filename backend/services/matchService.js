@@ -83,7 +83,7 @@ class MatchService {
       // Fallback to random questions if specific ones don't exist
       let matchQuery = { difficulty: challenge.difficulty };
       if (challenge.category) {
-        matchQuery.category = challenge.category._id;
+        matchQuery.category = challenge.category._id || challenge.category;
       }
 
       let questions = await Question.aggregate([
@@ -187,7 +187,7 @@ class MatchService {
       challenge.difficulty,
       Math.max(0, TIME_LIMIT - senderState.timeTaken), // timeLeft
       TIME_LIMIT,
-      challenge.category ? challenge.category._id : null
+      challenge.category ? (challenge.category._id || challenge.category) : null
     );
 
     const receiverResult = await scoreService.submitScore(
@@ -196,7 +196,7 @@ class MatchService {
       challenge.difficulty,
       Math.max(0, TIME_LIMIT - receiverState.timeTaken), // timeLeft
       TIME_LIMIT,
-      challenge.category ? challenge.category._id : null
+      challenge.category ? (challenge.category._id || challenge.category) : null
     );
 
     // Determine winner
@@ -213,6 +213,7 @@ class MatchService {
 
     const finalPayload = {
       winnerId,
+      categoryName: challenge.category ? (challenge.category.name || 'General Knowledge') : 'General Knowledge',
       results: {
         [senderId]: { correctCount: senderState.correctCount, xpEarned: senderResult.earnedXP, timeTaken: senderState.timeTaken },
         [receiverId]: { correctCount: receiverState.correctCount, xpEarned: receiverResult.earnedXP, timeTaken: receiverState.timeTaken }
@@ -250,8 +251,8 @@ class MatchService {
         if (winnerId) {
           // Award XP to the winner for the questions they already answered
           let winnerXP = 0;
+          const { challenge } = matchState;
           try {
-            const { challenge } = matchState;
             const TIME_LIMIT = 150;
             const winnerState = matchState.players[winnerId];
             const scoreResult = await scoreService.submitScore(
@@ -260,7 +261,7 @@ class MatchService {
               challenge.difficulty,
               Math.max(0, TIME_LIMIT - winnerState.timeTaken),
               TIME_LIMIT,
-              challenge.category ? challenge.category._id : null
+              challenge.category ? (challenge.category._id || challenge.category) : null
             );
             winnerXP = scoreResult.earnedXP;
 
@@ -273,6 +274,7 @@ class MatchService {
 
           io.to(challengeId).emit('match_over', {
             winnerId,
+            categoryName: challenge.category ? (challenge.category.name || 'General Knowledge') : 'General Knowledge',
             forfeit: true,
             forfeitedBy: disconnectedId,
             results: {
