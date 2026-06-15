@@ -19,9 +19,15 @@ export default function Quiz() {
     const { user } = useAuth();
     const location = useLocation();
     const [mode, setMode] = useState(location.state?.mode || null);
-    const [category, setCategory] = useState(null);
+    const [oneVoneType, setOneVoneType] = useState('random'); // 'random' | 'friend'
+    const [category, setCategory] = useState(location.state?.category || null);
     const [difficulty, setDifficulty] = useState('Easy');
     const [categories, setCategories] = useState([]);
+
+    // Friend-challenge state
+    const [opponent, setOpponent] = useState('');
+    const [challengeMsg, setChallengeMsg] = useState(null); // { type, text }
+    const [sending, setSending] = useState(false);
 
     useEffect(() => {
         api.get('/categories')
@@ -39,14 +45,52 @@ export default function Quiz() {
             .catch(() => {});
     }, []);
 
+    const selectedCategory = categories.find(c => c.slug === category);
+
     const handleStart = () => {
         if (!category) return;
         if (mode === 'solo') {
-            navigate('/quiz/play', { state: { category, difficulty, categoryId: categories.find(c => c.slug === category)?._id } });
-        } else if (mode === '1v1') {
+            navigate('/quiz/play', { state: { category, difficulty, categoryId: selectedCategory?._id } });
+        } else if (mode === '1v1' && oneVoneType === 'random') {
             navigate('/matchmaking', { state: { category, difficulty } });
         }
     };
+
+    const handleSendChallenge = async () => {
+        const name = opponent.trim();
+        if (name.length < 3) {
+            setChallengeMsg({ type: 'error', text: 'Username must be at least 3 characters' });
+            return;
+        }
+        if (!category) {
+            setChallengeMsg({ type: 'error', text: 'Pick a category first' });
+            return;
+        }
+        setSending(true);
+        setChallengeMsg(null);
+        try {
+            await api.post('/challenges', {
+                receiverUsername: name,
+                category: selectedCategory?._id,
+                difficulty,
+            });
+            setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
+            setOpponent('');
+        } catch (err) {
+            const status = err?.response?.status;
+            const text =
+                status === 404 ? 'No player found with that username' :
+                status === 409 ? 'You already have a pending challenge with this player' :
+                status === 400 ? 'You cannot challenge yourself' :
+                status === 429 ? 'Too many challenges — try again later' :
+                'Failed to send challenge';
+            setChallengeMsg({ type: 'error', text });
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const isFriend = mode === '1v1' && oneVoneType === 'friend';
 
     return (
         <div style={styles.page}>
@@ -62,6 +106,7 @@ export default function Quiz() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
+                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -110,11 +155,44 @@ export default function Quiz() {
                             style={{ ...styles.modeCard, ...(mode === '1v1' ? styles.modeCardActive : {}), borderColor: mode === '1v1' ? '#f92672' : '#75715e' }}
                             onClick={() => setMode('1v1')}
                         >
-                            <div style={styles.modeIcon}><svg width="32" height="32" viewBox="0 0 24 24" fill="#f92672"><path d="M6.92 5H5L3 7l1.5 1.5L6 7l5 5-1.5 1.5L11 15l1.5-1.5L21 22l1-1-8.5-8.5L15 11l-1.5-1.5L19 5h-2l-3 3-3-3zM3 17l4 4 1.5-1.5-4-4z" /></svg></div>
+                            <div style={{ ...styles.modeIcon, color: '#f92672' }}>⚔</div>
                             <div style={{ ...styles.modeName, color: mode === '1v1' ? '#f92672' : '#f8f8f2' }}>1v1 CHALLENGE</div>
-                            <div style={styles.modeDesc}>Battle a random opponent</div>
+                            <div style={styles.modeDesc}>Battle another player</div>
                         </div>
                     </div>
+
+                    {/* 1v1 sub-choice: random vs friend */}
+                    {mode === '1v1' && (
+                        <div style={styles.subChoiceRow}>
+                            <button
+                                style={{ ...styles.subChoiceBtn, ...(oneVoneType === 'random' ? styles.subChoiceActive : {}) }}
+                                onClick={() => { setOneVoneType('random'); setChallengeMsg(null); }}
+                            >
+                                ⚔ Random Opponent
+                            </button>
+                            <button
+                                style={{ ...styles.subChoiceBtn, ...(oneVoneType === 'friend' ? styles.subChoiceActive : {}) }}
+                                onClick={() => { setOneVoneType('friend'); setChallengeMsg(null); }}
+                            >
+                                Challenge a Friend
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Friend: username input shown up top, right after selecting Friend */}
+                    {isFriend && (
+                        <div style={styles.opponentBlock}>
+                            <div style={styles.opponentLabel}>{'// opponent_username'}</div>
+                            <input
+                                style={styles.challengeInput}
+                                type="text"
+                                placeholder="opponent_username"
+                                value={opponent}
+                                onChange={e => setOpponent(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Step 2 — Category */}
@@ -167,16 +245,40 @@ export default function Quiz() {
                     </div>
                 )}
 
-                {/* Start button */}
+                {/* Final action — Start (solo / random) OR Send challenge (friend) */}
                 {mode && category && (
-                    <button
-                        style={{ ...styles.startBtn, opacity: !category ? 0.5 : 1 }}
-                        onClick={handleStart}
-                        onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
-                    >
-                        {mode === 'solo' ? '▶ START SOLO QUIZ' : '⚔ FIND OPPONENT'}
-                    </button>
+                    isFriend ? (
+                        <div style={styles.section}>
+                            {challengeMsg && (
+                                <div style={{
+                                    ...styles.challengeMsg,
+                                    color: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
+                                    borderColor: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
+                                }}>
+                                    {challengeMsg.text}
+                                </div>
+                            )}
+                            <button
+                                style={{ ...styles.startBtn, background: '#f92672', borderColor: '#f92672', color: '#f8f8f2', opacity: sending ? 0.6 : 1 }}
+                                onClick={handleSendChallenge}
+                                disabled={sending}
+                            >
+                                {sending ? 'SENDING...' : '⚔ SEND CHALLENGE'}
+                            </button>
+                            <div style={styles.challengeHint}>
+                                {'// they\'ll get a notification to accept or decline'}
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            style={{ ...styles.startBtn, opacity: !category ? 0.5 : 1 }}
+                            onClick={handleStart}
+                            onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
+                        >
+                            {mode === 'solo' ? '▶ START SOLO QUIZ' : '⚔ FIND OPPONENT'}
+                        </button>
+                    )
                 )}
 
             </div>
@@ -215,6 +317,14 @@ const styles = {
     modeName: { fontFamily: "'Space Mono', monospace", fontSize: '16px', fontWeight: 700, marginBottom: '8px', letterSpacing: '2px' },
     modeDesc: { fontSize: '11px', color: '#75715e' },
 
+    subChoiceRow: { display: 'flex', gap: '12px', marginTop: '16px' },
+    subChoiceBtn: { flex: 1, fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, padding: '12px', border: '2px solid #75715e', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent', color: '#75715e', transition: 'all 0.15s' },
+    subChoiceActive: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
+
+    opponentBlock: { marginTop: '16px' },
+    opponentLabel: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', marginBottom: '8px', letterSpacing: '1px' },
+    challengeInput: { width: '100%', background: '#1e1f1a', border: '3px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '13px', padding: '12px 14px', outline: 'none', boxSizing: 'border-box' },
+
     catsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '3px solid #75715e' },
     catCard: { padding: '16px', background: '#2d2c28', cursor: 'pointer', transition: 'background 0.15s' },
     catIcon: { fontSize: '18px', fontWeight: 700, marginBottom: '6px' },
@@ -225,4 +335,6 @@ const styles = {
     diffBtnActive: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
 
     startBtn: { width: '100%', background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', fontFamily: "'Space Mono', monospace", fontSize: '14px', fontWeight: 700, padding: '14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
+    challengeMsg: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '8px 12px', border: '2px solid', letterSpacing: '0.5px', marginBottom: '12px' },
+    challengeHint: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', marginTop: '10px' },
 };

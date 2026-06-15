@@ -37,8 +37,9 @@ export default function Quiz() {
     const [xpGain, setXpGain] = useState(null);
     const [exploding, setExploding] = useState(false);
     const [answers, setAnswers] = useState([]);
-    const [review, setReview] = useState([]); // per-question review for Results page
+    const [review, setReview] = useState([]);
     const [focusMode, setFocusMode] = useState(false);
+    const [confirmForfeit, setConfirmForfeit] = useState(false);
 
     // Fetch questions
     useEffect(() => {
@@ -83,7 +84,7 @@ export default function Quiz() {
                         total: questions.length,
                         category,
                         difficulty,
-                        review, // pass review through
+                        review,
                     },
                 });
             } catch {
@@ -113,7 +114,6 @@ export default function Quiz() {
             setQuestions(prev => prev.map((q, i) =>
                 i === current ? { ...q, correct_answer: correctAnswer } : q
             ));
-            // record this question for the Results review
             setReview(prev => [...prev, {
                 text: questions[current].text,
                 selected: answer,
@@ -133,6 +133,11 @@ export default function Quiz() {
         }
     }, [answered, questions, current]);
 
+    // Forfeit — discard attempt, no score saved
+    const handleForfeit = () => {
+        navigate('/dashboard');
+    };
+
     // Auto-advance after the answer is checked
     useEffect(() => {
         if (!result) return;
@@ -140,9 +145,9 @@ export default function Quiz() {
         return () => clearTimeout(t);
     }, [result, handleNext]);
 
-    // Timer
+    // Timer — paused while the forfeit dialog is open
     useEffect(() => {
-        if (answered || loading) return;
+        if (answered || loading || confirmForfeit) return;
         if (timer === 0) {
             setTimeout(() => {
                 setExploding(true);
@@ -155,18 +160,18 @@ export default function Quiz() {
         }
         const interval = setInterval(() => setTimer(t => t - 1), 1000);
         return () => clearInterval(interval);
-    }, [timer, answered, loading, handleNext]);
+    }, [timer, answered, loading, confirmForfeit, handleNext]);
 
     // Keyboard shortcuts
     useEffect(() => {
-        if (answered) return;
+        if (answered || confirmForfeit) return;
         const handleKey = (e) => {
             if (e.key === 't' || e.key === '1') handleAnswer(true);
             if (e.key === 'f' || e.key === '2') handleAnswer(false);
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [answered, handleAnswer]);
+    }, [answered, confirmForfeit, handleAnswer]);
 
     if (loading) return (
         <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -237,6 +242,9 @@ export default function Quiz() {
                         <div style={styles.scoreTag}>score: <span style={{ color: '#a6e22e' }}>{score}</span>/{questions.length}</div>
                         <button style={styles.focusBtn} onClick={() => setFocusMode(f => !f)} title="Toggle focus mode">
                             {focusMode ? '◱ exit focus' : '⛶ focus'}
+                        </button>
+                        <button style={styles.forfeitBtn} onClick={() => setConfirmForfeit(true)} title="Quit quiz">
+                            ✕ Quit
                         </button>
                     </div>
                 </div>
@@ -309,6 +317,24 @@ export default function Quiz() {
 
             </div>
 
+            {/* Forfeit confirmation dialog */}
+            {confirmForfeit && (
+                <div style={styles.overlay}>
+                    <div style={styles.dialog}>
+                        <div style={styles.dialogTag}>{'// forfeit_quiz'}</div>
+                        <div style={styles.dialogText}>Are you sure? Your progress won't be saved and no XP will be earned.</div>
+                        <div style={styles.dialogBtns}>
+                            <button style={styles.dialogCancel} onClick={() => setConfirmForfeit(false)}>
+                                ← KEEP PLAYING
+                            </button>
+                            <button style={styles.dialogConfirm} onClick={handleForfeit}>
+                                ✕ QUIT
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
@@ -348,6 +374,7 @@ const styles = {
     questionTag: { fontSize: '12px', background: '#3e3d32', color: '#75715e', padding: '3px 10px', letterSpacing: '1px' },
     scoreTag: { fontSize: '12px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
     focusBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#66d9e8', border: '2px solid #66d9e8', padding: '4px 12px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+    forfeitBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#f92672', border: '2px solid #f92672', padding: '4px 12px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
 
     timerRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px', gap: '20px' },
     timerCircle: { width: '80px', height: '80px', borderRadius: '50%', border: '4px solid', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.5s, color 0.5s, box-shadow 0.5s' },
@@ -374,6 +401,14 @@ const styles = {
     resultRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     resultTag: { fontSize: '13px', fontFamily: "'Space Mono', monospace" },
     nextHint: { fontSize: '12px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
+
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(39,40,34,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+    dialog: { background: '#1e1f1a', border: '3px solid #f92672', padding: '28px', maxWidth: '420px', width: '90%', boxShadow: '6px 6px 0 #3e3d32' },
+    dialogTag: { fontFamily: "'Space Mono', monospace", fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '14px', letterSpacing: '2px' },
+    dialogText: { fontFamily: "'Space Mono', monospace", fontSize: '14px', color: '#f8f8f2', lineHeight: 1.5, marginBottom: '24px' },
+    dialogBtns: { display: 'flex', gap: '12px' },
+    dialogCancel: { flex: 1, fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#a6e22e', border: '2px solid #a6e22e', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+    dialogConfirm: { flex: 1, fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#f92672', color: '#f8f8f2', border: '2px solid #f92672', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
 
     loadingTag: { fontSize: '14px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
     errorBox: { background: 'rgba(249,38,114,0.15)', border: '2px solid #f92672', color: '#f92672', padding: '10px 14px', fontFamily: "'Space Mono', monospace", fontSize: '12px' },

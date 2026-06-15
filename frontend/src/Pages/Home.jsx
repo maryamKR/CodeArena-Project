@@ -279,21 +279,25 @@ export default function Home() {
                   </svg>
                   resets in {formatCountdown(resetsIn)}
                 </span>
-                <button
-                  style={styles.dcAccept}
-                  onClick={() => navigate('/quiz/play', {
-                    state: {
-                      category: daily.category?.slug,
-                      categoryId: daily.category?._id,
-                      difficulty: daily.difficulty,
-                      isDailyChallenge: true,
-                    },
-                  })}
-                  onMouseEnter={e => e.currentTarget.style.background = '#d4c95f'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#e6db74'}
-                >
-                  ACCEPT ▶
-                </button>
+                {daily.completedToday ? (
+                  <span style={styles.dcDone}>✓ COMPLETED</span>
+                ) : (
+                  <button
+                    style={styles.dcAccept}
+                    onClick={() => navigate('/quiz/play', {
+                      state: {
+                        category: daily.category?.slug,
+                        categoryId: daily.category?._id,
+                        difficulty: daily.difficulty,
+                        isDailyChallenge: true,
+                      },
+                    })}
+                    onMouseEnter={e => e.currentTarget.style.background = '#d4c95f'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#e6db74'}
+                  >
+                    ACCEPT ▶
+                  </button>
+                )}
               </div>
             </>
           ) : (
@@ -418,6 +422,7 @@ const styles = {
   dcFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' },
   dcTimer: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#75715e', display: 'flex', alignItems: 'center' },
   dcAccept: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '6px 14px', cursor: 'pointer', boxShadow: '3px 3px 0 rgba(230,219,116,0.3)', transition: 'background 0.15s' },
+  dcDone: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '6px 14px', letterSpacing: '1px', cursor: 'not-allowed' },
 
   lbRow: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#f8f8f2', display: 'flex', justifyContent: 'space-between', padding: '4px 0' },
   lbLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', display: 'inline-block', marginTop: '10px', cursor: 'pointer' },
