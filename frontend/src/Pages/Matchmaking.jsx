@@ -57,6 +57,7 @@ export default function Matchmaking() {
   socket.on('connect', () => {
     api.post('/matchmaking/join', {
       difficulty,
+      categorySlug: category,
       socketId: socket.id, 
     }).catch(() => {});
   });
