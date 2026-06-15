@@ -11,6 +11,29 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
+/* ============================================================
+   SVG ICONS
+   ============================================================ */
+
+// Medal — top 3 ranks. color tints gold/silver/bronze.
+const MedalIcon = ({ color = '#e6db74', size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ verticalAlign: 'middle' }}>
+        <path d="M7 2h3.2l-2.4 6.5H4.5L7 2z" fill={color} opacity="0.85" />
+        <path d="M13.8 2H17l2.5 6.5h-3.3L13.8 2z" fill={color} opacity="0.85" />
+        <circle cx="12" cy="15" r="6.2" fill={color} stroke="#272822" strokeWidth="1.5" />
+        <circle cx="12" cy="15" r="2.6" fill="#272822" />
+    </svg>
+);
+
+// Bolt — XP value (matches the navbar XP badge).
+const BoltIcon = ({ color = '#e6db74', size = 13 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
+         style={{ marginRight: '5px', verticalAlign: 'middle' }} aria-hidden="true">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </svg>
+);
+
+const MEDAL_COLORS = { 1: '#e6db74', 2: '#c0c0c0', 3: '#cd7f32' };
 
 export default function Leaderboard() {
     const navigate = useNavigate();
@@ -73,7 +96,7 @@ export default function Leaderboard() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
+                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -88,9 +111,7 @@ export default function Leaderboard() {
                     ))}
                 </div>
                 <div style={styles.xpBadge}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
+                    <BoltIcon color="#272822" size={14} />
                     {user?.totalXP || 0} XP
                 </div>
             </nav>
@@ -164,8 +185,9 @@ export default function Leaderboard() {
 
                         {/* Rows */}
                         {players.map((player, i) => {
+                            const rank = i + 1;
                             const isCurrentUser = player.username === user?.username;
-                            const rankStyle = getRankStyle(i + 1);
+                            const rankStyle = getRankStyle(rank);
                             return (
                                 <div
                                     key={player._id}
@@ -175,8 +197,10 @@ export default function Leaderboard() {
                                         ...(isCurrentUser ? styles.currentUserRow : {}),
                                     }}
                                 >
-                                    <div style={{ width: '60px', fontWeight: 700, fontSize: '16px' }}>
-                                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                                    <div style={{ width: '60px', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center' }}>
+                                        {rank <= 3
+                                            ? <MedalIcon color={MEDAL_COLORS[rank]} size={22} />
+                                            : `#${rank}`}
                                     </div>
                                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <div style={{ ...styles.avatar, background: isCurrentUser ? '#a6e22e' : '#3e3d32', color: isCurrentUser ? '#272822' : '#f8f8f2' }}>
@@ -187,8 +211,8 @@ export default function Leaderboard() {
                                             {isCurrentUser && <span style={{ fontSize: '10px', color: '#a6e22e', marginLeft: '8px' }}>(you)</span>}
                                         </span>
                                     </div>
-                                    <div style={{ width: '120px', textAlign: 'right', color: '#e6db74', fontWeight: 700 }}>
-                                        ⚡ {player.totalXP}
+                                    <div style={{ width: '120px', textAlign: 'right', color: '#e6db74', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                        <BoltIcon color="#e6db74" size={13} /> {player.totalXP}
                                     </div>
                                     <div style={{ width: '100px', textAlign: 'right', color: '#75715e' }}>
                                         {player.quizzesPlayed || 0}

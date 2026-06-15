@@ -28,6 +28,7 @@ export default function Quiz() {
     const [selected, setSelected] = useState(null);
     const [timer, setTimer] = useState(TIMER_MAX);
     const [answered, setAnswered] = useState(false);
+    const [result, setResult] = useState(null); // 'correct' | 'wrong' — set only after /check returns
     const [score, setScore] = useState(0);
     const [seenIds, setSeenIds] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -54,8 +55,6 @@ export default function Quiz() {
         fetchQuestions();
     }, []);
 
-    
-
     const getTimerColor = () => {
         if (timer > 20) return '#a6e22e';
         if (timer > 10) return '#e6db74';
@@ -66,21 +65,26 @@ export default function Quiz() {
         if (answered) return;
         setAnswered(true);
         setSelected(answer);
-        setAnswers(prev => [...prev, { questionId: questions[current]._id, selectedAnswer: answer }]); // ✅ add here
+        setAnswers(prev => [...prev, { questionId: questions[current]._id, selectedAnswer: answer }]);
         try {
             const res = await api.post(`/questions/${questions[current]._id}/check`, {
-            selectedAnswer: answer
+                selectedAnswer: answer
             });
-            if (res.data.correct) {
-            setScore(s => s + 1);
-            setXpGain(10);
-            setTimeout(() => setXpGain(null), 1500);
-            }
-            setQuestions(prev => prev.map((q, i) => 
-            i === current ? { ...q, correct_answer: res.data.correctAnswer } : q
+            // store the correct answer first
+            setQuestions(prev => prev.map((q, i) =>
+                i === current ? { ...q, correct_answer: res.data.correctAnswer } : q
             ));
+            // then decide the result from the response, not from stale state
+            if (res.data.correct) {
+                setResult('correct');
+                setScore(s => s + 1);
+                setXpGain(10);
+                setTimeout(() => setXpGain(null), 1500);
+            } else {
+                setResult('wrong');
+            }
         } catch {
-            // fallback
+            setResult('wrong'); // fallback if the check call fails
         }
     }, [answered, questions, current]);
 
@@ -116,6 +120,7 @@ export default function Quiz() {
         setCurrent(c => c + 1);
         setSelected(null);
         setAnswered(false);
+        setResult(null);
         setTimer(TIMER_MAX);
     }, [current, questions.length, score, timer, category, difficulty, navigate, answers, refreshUser]);
 
@@ -176,7 +181,6 @@ export default function Quiz() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -242,8 +246,8 @@ export default function Quiz() {
                         style={{
                             ...styles.answerBtn,
                             ...styles.trueBtn,
-                            ...(answered && question?.correct_answer === true ? styles.correctBtn : {}),
-                            ...(answered && selected === true && question?.correct_answer !== true ? styles.wrongBtn : {}),
+                            ...(result && question?.correct_answer === true ? styles.correctBtn : {}),
+                            ...(result && selected === true && question?.correct_answer !== true ? styles.wrongBtn : {}),
                             opacity: answered ? 0.85 : 1,
                         }}
                         onClick={() => handleAnswer(true)}
@@ -256,8 +260,8 @@ export default function Quiz() {
                         style={{
                             ...styles.answerBtn,
                             ...styles.falseBtn,
-                            ...(answered && question?.correct_answer === false ? styles.correctBtn : {}),
-                            ...(answered && selected === false && question?.correct_answer !== false ? styles.wrongBtn : {}),
+                            ...(result && question?.correct_answer === false ? styles.correctBtn : {}),
+                            ...(result && selected === false && question?.correct_answer !== false ? styles.wrongBtn : {}),
                             opacity: answered ? 0.85 : 1,
                         }}
                         onClick={() => handleAnswer(false)}
@@ -271,9 +275,13 @@ export default function Quiz() {
                 {/* Next button */}
                 {answered && (
                     <div style={styles.nextRow}>
-                        <div style={{ ...styles.resultTag, color: selected === question?.correct_answer ? '#a6e22e' : '#f92672' }}>
-                            {selected === question?.correct_answer ? '// correct! +10 XP' : '// wrong!'}
-                        </div>
+                        {result ? (
+                            <div style={{ ...styles.resultTag, color: result === 'correct' ? '#a6e22e' : '#f92672' }}>
+                                {result === 'correct' ? '// correct! +10 XP' : '// wrong!'}
+                            </div>
+                        ) : (
+                            <div style={{ ...styles.resultTag, color: '#75715e' }}>{'// checking...'}</div>
+                        )}
                         <button
                             style={styles.nextBtn}
                             onClick={handleNext}
