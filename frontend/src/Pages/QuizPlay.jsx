@@ -11,7 +11,8 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-const TIMER_MAX = 30;
+const TIMER_MAX = 10;
+const AUTO_ADVANCE_MS = 1400;
 
 export default function Quiz() {
     const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function Quiz() {
     const [selected, setSelected] = useState(null);
     const [timer, setTimer] = useState(TIMER_MAX);
     const [answered, setAnswered] = useState(false);
-    const [result, setResult] = useState(null); // 'correct' | 'wrong' — set only after /check returns
+    const [result, setResult] = useState(null);
     const [score, setScore] = useState(0);
     const [seenIds, setSeenIds] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -36,6 +37,8 @@ export default function Quiz() {
     const [xpGain, setXpGain] = useState(null);
     const [exploding, setExploding] = useState(false);
     const [answers, setAnswers] = useState([]);
+    const [review, setReview] = useState([]); // per-question review for Results page
+    const [focusMode, setFocusMode] = useState(false);
 
     // Fetch questions
     useEffect(() => {
@@ -56,37 +59,10 @@ export default function Quiz() {
     }, []);
 
     const getTimerColor = () => {
-        if (timer > 20) return '#a6e22e';
-        if (timer > 10) return '#e6db74';
+        if (timer > 6) return '#a6e22e';
+        if (timer > 3) return '#e6db74';
         return '#f92672';
     };
-
-    const handleAnswer = useCallback(async (answer) => {
-        if (answered) return;
-        setAnswered(true);
-        setSelected(answer);
-        setAnswers(prev => [...prev, { questionId: questions[current]._id, selectedAnswer: answer }]);
-        try {
-            const res = await api.post(`/questions/${questions[current]._id}/check`, {
-                selectedAnswer: answer
-            });
-            // store the correct answer first
-            setQuestions(prev => prev.map((q, i) =>
-                i === current ? { ...q, correct_answer: res.data.correctAnswer } : q
-            ));
-            // then decide the result from the response, not from stale state
-            if (res.data.correct) {
-                setResult('correct');
-                setScore(s => s + 1);
-                setXpGain(10);
-                setTimeout(() => setXpGain(null), 1500);
-            } else {
-                setResult('wrong');
-            }
-        } catch {
-            setResult('wrong'); // fallback if the check call fails
-        }
-    }, [answered, questions, current]);
 
     const handleNext = useCallback(async () => {
         if (current + 1 >= questions.length) {
@@ -102,17 +78,17 @@ export default function Quiz() {
                 await refreshUser();
                 navigate('/results', {
                     state: {
-                        result: res.data.data,  // XP, newRank etc from Assma
+                        result: res.data.data,
                         score,
                         total: questions.length,
                         category,
                         difficulty,
+                        review, // pass review through
                     },
                 });
             } catch {
-                // still navigate even if score submit fails
                 navigate('/results', {
-                    state: { score, total: questions.length, category, difficulty },
+                    state: { score, total: questions.length, category, difficulty, review },
                 });
             }
             return;
@@ -122,8 +98,47 @@ export default function Quiz() {
         setAnswered(false);
         setResult(null);
         setTimer(TIMER_MAX);
-    }, [current, questions.length, score, timer, category, difficulty, navigate, answers, refreshUser]);
+    }, [current, questions.length, score, timer, category, difficulty, navigate, answers, refreshUser, categoryId, isDailyChallenge, review]);
 
+    const handleAnswer = useCallback(async (answer) => {
+        if (answered) return;
+        setAnswered(true);
+        setSelected(answer);
+        setAnswers(prev => [...prev, { questionId: questions[current]._id, selectedAnswer: answer }]);
+        try {
+            const res = await api.post(`/questions/${questions[current]._id}/check`, {
+                selectedAnswer: answer
+            });
+            const correctAnswer = res.data.correctAnswer;
+            setQuestions(prev => prev.map((q, i) =>
+                i === current ? { ...q, correct_answer: correctAnswer } : q
+            ));
+            // record this question for the Results review
+            setReview(prev => [...prev, {
+                text: questions[current].text,
+                selected: answer,
+                correct: correctAnswer,
+                isCorrect: res.data.correct,
+            }]);
+            if (res.data.correct) {
+                setResult('correct');
+                setScore(s => s + 1);
+                setXpGain(10);
+                setTimeout(() => setXpGain(null), 1500);
+            } else {
+                setResult('wrong');
+            }
+        } catch {
+            setResult('wrong');
+        }
+    }, [answered, questions, current]);
+
+    // Auto-advance after the answer is checked
+    useEffect(() => {
+        if (!result) return;
+        const t = setTimeout(() => handleNext(), AUTO_ADVANCE_MS);
+        return () => clearTimeout(t);
+    }, [result, handleNext]);
 
     // Timer
     useEffect(() => {
@@ -135,7 +150,7 @@ export default function Quiz() {
                     setExploding(false);
                     handleNext();
                 }, 1000);
-            }, 0); // ← moves setState out of the effect body
+            }, 0);
             return;
         }
         const interval = setInterval(() => setTimer(t => t - 1), 1000);
@@ -170,44 +185,47 @@ export default function Quiz() {
     return (
         <div style={{ ...styles.page, animation: exploding ? 'shake 0.5s' : 'none' }}>
 
-            {/* Navbar */}
-            <nav style={styles.nav}>
-                <div style={styles.logo}>
-                    <span style={styles.bracket}>[</span>
-                    <span style={styles.logoName}>CODE</span>
-                    <span style={styles.bracket}>]</span>
-                    {' '}ARENA
-                </div>
-                <div style={styles.navLinks}>
-                    {NAV_LINKS.map((link, i) => (
-                        <a
-                            key={link.label}
-                            onClick={() => navigate(link.path)}
-                            style={{
-                                ...styles.navLink,
-                                ...(i === 2 ? styles.navLinkActive : {}),
-                                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {link.label}
-                        </a>
-                    ))}
-                </div>
-                <div style={styles.xpBadge}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
-                    {user?.totalXP || 0} XP
-                </div>
-            </nav>
+            {/* Navbar — hidden in focus mode */}
+            {!focusMode && (
+                <nav style={styles.nav}>
+                    <div style={styles.logo}>
+                        <span style={styles.bracket}>[</span>
+                        <span style={styles.logoName}>CODE</span>
+                        <span style={styles.bracket}>]</span>
+                        {' '}ARENA
+                    </div>
+                    <div style={styles.navLinks}>
+                        {NAV_LINKS.map((link, i) => (
+                            <a
+                            
+                                key={link.label}
+                                onClick={() => navigate(link.path)}
+                                style={{
+                                    ...styles.navLink,
+                                    ...(i === 2 ? styles.navLinkActive : {}),
+                                    ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {link.label}
+                            </a>
+                        ))}
+                    </div>
+                    <div style={styles.xpBadge}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        {user?.totalXP || 0} XP
+                    </div>
+                </nav>
+            )}
 
             {/* Progress bar */}
             <div style={styles.progressBar}>
                 <div style={{ ...styles.progressFill, width: `${((current) / questions.length) * 100}%`, background: getTimerColor() }} />
             </div>
 
-            <div style={styles.content}>
+            <div style={focusMode ? styles.contentFocus : styles.content}>
 
                 {/* Header row */}
                 <div style={styles.headerRow}>
@@ -215,30 +233,31 @@ export default function Quiz() {
                         {'// '}<span style={{ color: '#66d9e8' }}>{category}</span>
                         {'.'}<span style={{ color: '#a6e22e' }}>{difficulty}</span>
                     </div>
-                    <div style={styles.scoreTag}>score: <span style={{ color: '#a6e22e' }}>{score}</span>/{questions.length}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={styles.scoreTag}>score: <span style={{ color: '#a6e22e' }}>{score}</span>/{questions.length}</div>
+                        <button style={styles.focusBtn} onClick={() => setFocusMode(f => !f)} title="Toggle focus mode">
+                            {focusMode ? '◱ exit focus' : '⛶ focus'}
+                        </button>
+                    </div>
                 </div>
 
-                {/* Timer bomb */}
+                {/* Timer */}
                 <div style={styles.timerRow}>
                     <div style={{ ...styles.timerCircle, borderColor: getTimerColor(), color: getTimerColor(), boxShadow: `0 0 20px ${getTimerColor()}40` }}>
                         <div style={styles.timerNum}>{timer}</div>
                         <div style={styles.timerLabel}>SEC</div>
                     </div>
-                    {exploding && (
-                        <div style={styles.explosion}>💥 TIME'S UP!</div>
-                    )}
+                    {exploding && <div style={styles.explosion}>TIME'S UP!</div>}
                 </div>
 
                 {/* Question */}
-                <div style={styles.questionCard}>
+                <div style={{ ...styles.questionCard, ...(focusMode ? styles.questionCardFocus : {}) }}>
                     <div style={styles.questionNum}>// question_{current + 1}</div>
-                    <div style={styles.questionText}>{question?.text}</div>
+                    <div style={{ ...styles.questionText, ...(focusMode ? styles.questionTextFocus : {}) }}>{question?.text}</div>
                 </div>
 
                 {/* XP animation */}
-                {xpGain && (
-                    <div style={styles.xpPop}>+{xpGain} XP</div>
-                )}
+                {xpGain && <div style={styles.xpPop}>+{xpGain} XP</div>}
 
                 {/* True / False buttons */}
                 <div style={styles.answerRow}>
@@ -272,9 +291,9 @@ export default function Quiz() {
                     </button>
                 </div>
 
-                {/* Next button */}
+                {/* Result line (auto-advances, no Next button) */}
                 {answered && (
-                    <div style={styles.nextRow}>
+                    <div style={styles.resultRow}>
                         {result ? (
                             <div style={{ ...styles.resultTag, color: result === 'correct' ? '#a6e22e' : '#f92672' }}>
                                 {result === 'correct' ? '// correct! +10 XP' : '// wrong!'}
@@ -282,14 +301,9 @@ export default function Quiz() {
                         ) : (
                             <div style={{ ...styles.resultTag, color: '#75715e' }}>{'// checking...'}</div>
                         )}
-                        <button
-                            style={styles.nextBtn}
-                            onClick={handleNext}
-                            onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
-                            onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
-                        >
-                            {current + 1 >= questions.length ? 'VIEW RESULTS →' : 'NEXT →'}
-                        </button>
+                        <div style={styles.nextHint}>
+                            {current + 1 >= questions.length ? '// loading results...' : '// next question...'}
+                        </div>
                     </div>
                 )}
 
@@ -328,10 +342,12 @@ const styles = {
     progressFill: { height: '100%', transition: 'width 0.3s ease, background 0.5s ease' },
 
     content: { padding: '28px 24px', maxWidth: '800px', margin: '0 auto' },
+    contentFocus: { padding: '48px 24px', maxWidth: '1000px', margin: '0 auto', minHeight: 'calc(100vh - 6px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
 
     headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
     questionTag: { fontSize: '12px', background: '#3e3d32', color: '#75715e', padding: '3px 10px', letterSpacing: '1px' },
     scoreTag: { fontSize: '12px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
+    focusBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#66d9e8', border: '2px solid #66d9e8', padding: '4px 12px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
 
     timerRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px', gap: '20px' },
     timerCircle: { width: '80px', height: '80px', borderRadius: '50%', border: '4px solid', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.5s, color 0.5s, box-shadow 0.5s' },
@@ -340,8 +356,10 @@ const styles = {
     explosion: { fontSize: '20px', fontWeight: 700, color: '#f92672', animation: 'shake 0.5s' },
 
     questionCard: { background: '#1e1f1a', border: '3px solid #75715e', padding: '24px', marginBottom: '28px', boxShadow: '4px 4px 0 #3e3d32' },
+    questionCardFocus: { padding: '48px', marginBottom: '40px' },
     questionNum: { fontSize: '11px', color: '#75715e', marginBottom: '12px', letterSpacing: '1px' },
     questionText: { fontSize: '18px', fontWeight: 700, color: '#f8f8f2', lineHeight: 1.5 },
+    questionTextFocus: { fontSize: '28px', lineHeight: 1.4, textAlign: 'center' },
 
     xpPop: { position: 'fixed', top: '40%', left: '50%', transform: 'translateX(-50%)', fontSize: '28px', fontWeight: 700, color: '#a6e22e', animation: 'popUp 1.5s forwards', zIndex: 999, fontFamily: "'Space Mono', monospace", pointerEvents: 'none' },
 
@@ -353,9 +371,9 @@ const styles = {
     correctBtn: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
     wrongBtn: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
 
-    nextRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    resultRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     resultTag: { fontSize: '13px', fontFamily: "'Space Mono', monospace" },
-    nextBtn: { fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '10px 24px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
+    nextHint: { fontSize: '12px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
 
     loadingTag: { fontSize: '14px', color: '#75715e', fontFamily: "'Space Mono', monospace" },
     errorBox: { background: 'rgba(249,38,114,0.15)', border: '2px solid #f92672', color: '#f92672', padding: '10px 14px', fontFamily: "'Space Mono', monospace", fontSize: '12px' },

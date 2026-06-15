@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import api from '../api/axios';
 
 /* ============================================================
    MOCK DATA — each block maps to one Flask endpoint for Asmaa
@@ -19,8 +20,6 @@ const CATEGORIES = [
   { id: 'doc', label: 'Docker', short: 'DOC', count: 3, solved: 0, color: '#66d9e8' },
 ];
 
-const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
-
 const NAV_LINKS = [
   { label: 'Home', path: '/' },
   { label: 'Dashboard', path: '/dashboard', authOnly: true },
@@ -29,37 +28,24 @@ const NAV_LINKS = [
   { label: 'Profile', path: '/profile', authOnly: true },
 ];
 
-// GET /api/stats/me
 const USER_STATS = [
   { val: '47', label: 'Quizzes played', color: '#a6e22e' },
   { val: '320', label: 'Total XP', color: '#e6db74' },
   { val: '#12', label: 'Global rank', color: '#66d9e8' },
 ];
 
-// GET /api/stats/global
 const GLOBAL_STATS = [
   { val: '2,480', label: 'Players', color: '#a6e22e' },
   { val: '370', label: 'Questions', color: '#e6db74' },
   { val: '184', label: 'Played today', color: '#66d9e8' },
 ];
 
-// GET /api/daily-challenge
-const DAILY_CHALLENGE = {
-  title: 'Async traps in JavaScript',
-  category: 'JS',
-  difficulty: 'MEDIUM',
-  bonusXp: 50,
-  resetsIn: '06:12:44',
-};
-
-// GET /api/leaderboard/top
 const TOP_PLAYERS = [
   { rank: 1, name: 'amine_dev', xp: 2840, color: '#e6db74' },
   { rank: 2, name: 'sara.codes', xp: 2615, color: '#75715e' },
   { rank: 3, name: 'yass1ne', xp: 2402, color: '#f92672' },
 ];
 
-// GET /api/activity/recent
 const RECENT_ACTIVITY = [
   { tag: 'JS · EASY', color: '#e6db74', score: '8/10', xp: 40, when: '2h ago' },
   { tag: 'SQL · MEDIUM', color: '#f92672', score: '6/10', xp: 45, when: 'yesterday' },
@@ -70,17 +56,43 @@ export default function Home() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const [difficulty, setDifficulty] = useState('Easy');
   const [selectedCat, setSelectedCat] = useState('js');
   const [showAllCats, setShowAllCats] = useState(false);
+  const [daily, setDaily] = useState(null);
+  const [resetsIn, setResetsIn] = useState(0);
 
   const visibleLinks = NAV_LINKS.filter(link => !link.authOnly || user);
   const stats = user ? USER_STATS : GLOBAL_STATS;
   const visibleCats = showAllCats ? CATEGORIES : CATEGORIES.slice(0, 4);
 
+  // Fetch today's daily challenge (auth-only per API)
+  useEffect(() => {
+    if (!user) return;
+    api.get('/daily-challenge')
+      .then(res => {
+        setDaily(res.data.data);
+        setResetsIn(res.data.data.resetsIn || 0);
+      })
+      .catch(() => setDaily(null));
+  }, [user]);
+
+  // Live countdown
+  useEffect(() => {
+    if (resetsIn <= 0) return;
+    const id = setInterval(() => setResetsIn(s => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [resetsIn > 0]);
+
+  const formatCountdown = (secs) => {
+    const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+    const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
   const handleStartQuiz = () => {
     if (!user) return navigate('/login');
-    navigate(`/quiz?category=${selectedCat}&difficulty=${difficulty.toLowerCase()}`);
+    navigate('/quiz', { state: { category: selectedCat } });
   };
 
   return (
@@ -180,7 +192,6 @@ export default function Home() {
             <div style={styles.catName}>{cat.label}</div>
             <div style={styles.catCount}>{cat.count} questions</div>
 
-            {/* progress — logged-in only */}
             {user && (
               <>
                 <div style={styles.catBarTrack}>
@@ -202,9 +213,7 @@ export default function Home() {
             onMouseEnter={e => { e.currentTarget.style.background = '#a6e22e'; e.currentTarget.style.color = '#272822'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a6e22e'; }}
           >
-            {showAllCats
-              ? '− show less'
-              : `+ show ${CATEGORIES.length - 4} more`}
+            {showAllCats ? '− show less' : `+ show ${CATEGORIES.length - 4} more`}
           </button>
         </div>
       )}
@@ -216,24 +225,6 @@ export default function Home() {
             <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
             <div style={styles.statLabel}>{stat.label}</div>
           </div>
-        ))}
-      </div>
-
-      {/* Difficulty */}
-      <div style={styles.diffRow}>
-        <span style={styles.diffLabel}>Difficulty:</span>
-        {DIFFICULTIES.map((d, i) => (
-          <button
-            key={d}
-            onClick={() => setDifficulty(d)}
-            style={{
-              ...styles.diffBtn,
-              borderRight: i === DIFFICULTIES.length - 1 ? '2px solid #75715e' : 'none',
-              ...(difficulty === d ? styles.diffBtnActive : {}),
-            }}
-          >
-            {d}
-          </button>
         ))}
       </div>
 
@@ -268,33 +259,48 @@ export default function Home() {
         {/* Daily challenge */}
         <div style={styles.panel}>
           <div style={styles.panelTag}>{'// daily_challenge'}</div>
-          <div style={styles.dcTitle}>{DAILY_CHALLENGE.title}</div>
-          <div style={styles.dcTags}>
-            <span style={{ ...styles.dcPill, color: '#e6db74', borderColor: '#e6db74' }}>{DAILY_CHALLENGE.category}</span>
-            <span style={{ ...styles.dcPill, color: '#f92672', borderColor: '#f92672' }}>{DAILY_CHALLENGE.difficulty}</span>
-            <span style={styles.dcBonus}>+{DAILY_CHALLENGE.bonusXp} BONUS XP</span>
-          </div>
-          <div style={styles.dcFooter}>
-            <span style={styles.dcTimer}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#75715e" strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </svg>
-              resets in {DAILY_CHALLENGE.resetsIn}
-            </span>
-            {user ? (
-              <button
-                style={styles.dcAccept}
-                onClick={() => navigate('/quiz?daily=true')}
-                onMouseEnter={e => e.currentTarget.style.background = '#d4c95f'}
-                onMouseLeave={e => e.currentTarget.style.background = '#e6db74'}
-              >
-                ACCEPT ▶
-              </button>
-            ) : (
-              <button style={styles.dcLogin} onClick={() => navigate('/login')}>login to play</button>
-            )}
-          </div>
+          {daily ? (
+            <>
+              <div style={styles.dcTitle}>{daily.category?.name} challenge</div>
+              <div style={styles.dcTags}>
+                <span style={{ ...styles.dcPill, color: daily.category?.color || '#e6db74', borderColor: daily.category?.color || '#e6db74' }}>
+                  {daily.category?.slug?.toUpperCase()}
+                </span>
+                <span style={{ ...styles.dcPill, color: '#f92672', borderColor: '#f92672' }}>
+                  {daily.difficulty?.toUpperCase()}
+                </span>
+                <span style={styles.dcBonus}>+{daily.bonusXP} BONUS XP</span>
+              </div>
+              <div style={styles.dcFooter}>
+                <span style={styles.dcTimer}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#75715e" strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 3" />
+                  </svg>
+                  resets in {formatCountdown(resetsIn)}
+                </span>
+                <button
+                  style={styles.dcAccept}
+                  onClick={() => navigate('/quiz/play', {
+                    state: {
+                      category: daily.category?.slug,
+                      categoryId: daily.category?._id,
+                      difficulty: daily.difficulty,
+                      isDailyChallenge: true,
+                    },
+                  })}
+                  onMouseEnter={e => e.currentTarget.style.background = '#d4c95f'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#e6db74'}
+                >
+                  ACCEPT ▶
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ ...styles.dcTimer, marginTop: '12px' }}>
+              {user ? '// no challenge set for today' : '// login to view today\'s challenge'}
+            </div>
+          )}
         </div>
 
         {/* Top players */}
@@ -396,11 +402,6 @@ const styles = {
   statVal: { fontFamily: "'Space Mono', monospace", fontSize: '28px', fontWeight: 700 },
   statLabel: { fontSize: '14px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' },
 
-  diffRow: { display: 'flex', alignItems: 'center', padding: '16px 24px', borderBottom: '3px solid #75715e', background: '#1e1f1a' },
-  diffLabel: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', marginRight: '14px', textTransform: 'uppercase', letterSpacing: '1px' },
-  diffBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '6px 16px', border: '2px solid #75715e', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent', color: '#75715e' },
-  diffBtnActive: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
-
   startRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: '#272822' },
   startBtn: { fontFamily: "'Space Mono', monospace", fontSize: '14px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '12px 32px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
   loginNote: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#75715e' },
@@ -417,7 +418,6 @@ const styles = {
   dcFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' },
   dcTimer: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#75715e', display: 'flex', alignItems: 'center' },
   dcAccept: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '6px 14px', cursor: 'pointer', boxShadow: '3px 3px 0 rgba(230,219,116,0.3)', transition: 'background 0.15s' },
-  dcLogin: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#66d9e8', border: '2px solid #66d9e8', padding: '6px 14px', background: 'transparent', cursor: 'pointer', boxShadow: '3px 3px 0 rgba(102,217,232,0.3)' },
 
   lbRow: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#f8f8f2', display: 'flex', justifyContent: 'space-between', padding: '4px 0' },
   lbLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', display: 'inline-block', marginTop: '10px', cursor: 'pointer' },

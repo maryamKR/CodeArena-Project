@@ -11,14 +11,18 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-
-
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
     const [leaderboard, setLeaderboard] = useState([]);
     const [myRank, setMyRank] = useState(null);
+
+    // Challenge-a-friend state
+    const [showChallenge, setShowChallenge] = useState(false);
+    const [opponent, setOpponent] = useState('');
+    const [challengeMsg, setChallengeMsg] = useState(null); // { type: 'error'|'success', text }
+    const [sending, setSending] = useState(false);
 
     useEffect(() => {
         if (!user?._id) return;
@@ -31,11 +35,37 @@ export default function Dashboard() {
         api.get('/leaderboard/me')
             .then(res => setMyRank(res.data.data))
             .catch(() => {});
-    },[user]);
+    }, [user]);
 
     const handleLogout = async () => {
         await logout();
         navigate('/');
+    };
+
+    const handleSendChallenge = async () => {
+        const name = opponent.trim();
+        if (name.length < 3) {
+            setChallengeMsg({ type: 'error', text: 'Username must be at least 3 characters' });
+            return;
+        }
+        setSending(true);
+        setChallengeMsg(null);
+        try {
+            await api.post('/challenges', { receiverUsername: name });
+            setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
+            setOpponent('');
+        } catch (err) {
+            const status = err?.response?.status;
+            const text =
+                status === 404 ? 'No player found with that username' :
+                status === 409 ? 'You already have a pending challenge with this player' :
+                status === 400 ? 'You cannot challenge yourself' :
+                status === 429 ? 'Too many challenges — try again later' :
+                'Failed to send challenge';
+            setChallengeMsg({ type: 'error', text });
+        } finally {
+            setSending(false);
+        }
     };
 
     return (
@@ -52,7 +82,7 @@ export default function Dashboard() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
+                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -152,14 +182,46 @@ export default function Dashboard() {
                                         <span style={styles.orText}>OR</span>
                                         <div style={styles.orLine}></div>
                                     </div>
-                                    <button
-                                        style={styles.friendBtn}
-                                        onClick={() => navigate('/challenge')}
-                                        onMouseEnter={e => { e.currentTarget.style.background = '#f92672'; e.currentTarget.style.color = '#f8f8f2'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#f92672'; }}
-                                    >
-                                        Challenge a Friend
-                                    </button>
+
+                                    {!showChallenge ? (
+                                        <button
+                                            style={styles.friendBtn}
+                                            onClick={() => { setShowChallenge(true); setChallengeMsg(null); }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = '#f92672'; e.currentTarget.style.color = '#f8f8f2'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#f92672'; }}
+                                        >
+                                            Challenge a Friend
+                                        </button>
+                                    ) : (
+                                        <div style={styles.challengeForm}>
+                                            <input
+                                                style={styles.challengeInput}
+                                                type="text"
+                                                placeholder="opponent_username"
+                                                value={opponent}
+                                                onChange={e => setOpponent(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
+                                                autoFocus
+                                            />
+                                            <button
+                                                style={{ ...styles.challengeSendBtn, opacity: sending ? 0.6 : 1 }}
+                                                onClick={handleSendChallenge}
+                                                disabled={sending}
+                                            >
+                                                {sending ? '...' : 'SEND'}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {challengeMsg && (
+                                        <div style={{
+                                            ...styles.challengeMsg,
+                                            color: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
+                                            borderColor: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
+                                        }}>
+                                            {challengeMsg.text}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -175,7 +237,7 @@ export default function Dashboard() {
                                     <div key={i} style={{ ...styles.activityRow, borderBottom: i < history.length - 1 ? '1px solid #3e3d32' : 'none' }}>
                                         <div style={{ color: '#66d9e8', fontSize: '12px' }}>{h.category?.name || '?'}</div>
                                         <div style={{ color: '#75715e', fontSize: '11px' }}>{h.difficulty}</div>
-                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px' }}>{h.score}/{h.correctAnswers}/10</div>
+                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px' }}>{h.correctAnswers}/10</div>
                                         <div style={{ color: '#e6db74', fontSize: '11px' }}>+{h.earnedXP} XP</div>
                                     </div>
                                 ))
@@ -190,7 +252,7 @@ export default function Dashboard() {
                         <div style={styles.sectionTag}>{'// top_players'}</div>
                         <div style={styles.leaderCard}>
                             {leaderboard.map((p, i) => (
-                                <div key={p.rank} style={{ ...styles.leaderRow, borderBottom: i < 2 ? '1px solid #3e3d32' : 'none' }}>
+                                <div key={p._id || i} style={{ ...styles.leaderRow, borderBottom: i < 2 ? '1px solid #3e3d32' : 'none' }}>
                                     <div style={styles.leaderRank}>#{i + 1}</div>
                                     <div style={styles.leaderName}>{p.username}</div>
                                     <div style={styles.leaderXP}>
@@ -201,7 +263,6 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             ))}
-                            
                         </div>
 
                         {/* Badges */}
@@ -272,6 +333,10 @@ const styles = {
     orLine: { flex: 1, height: '1px', background: '#3e3d32' },
     orText: { fontSize: '9px', color: '#75715e', letterSpacing: '2px' },
     friendBtn: { width: '100%', background: 'transparent', color: '#f92672', border: '2px solid #f92672', fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '9px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', transition: 'all 0.15s' },
+    challengeForm: { display: 'flex', gap: '6px' },
+    challengeInput: { flex: 1, background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '11px', padding: '8px 10px', outline: 'none' },
+    challengeSendBtn: { background: '#f92672', color: '#f8f8f2', border: 'none', fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+    challengeMsg: { fontFamily: "'Space Mono', monospace", fontSize: '10px', fontWeight: 700, padding: '6px 8px', border: '2px solid', letterSpacing: '0.5px' },
 
     activityCard: { background: '#1e1f1a', border: '3px solid #75715e' },
     activityHeader: { padding: '10px 14px', borderBottom: '2px solid #3e3d32', fontSize: '10px', color: '#75715e', letterSpacing: '2px' },
@@ -284,7 +349,6 @@ const styles = {
     leaderRank: { fontSize: '12px', fontWeight: 700, color: '#e6db74', width: '28px' },
     leaderName: { flex: 1, fontSize: '12px', fontWeight: 700, color: '#f8f8f2' },
     leaderXP: { fontSize: '11px', color: '#e6db74', display: 'flex', alignItems: 'center' },
-    viewAllBtn: { width: '100%', background: 'transparent', border: 'none', borderTop: '2px solid #3e3d32', color: '#66d9e8', fontFamily: "'Space Mono', monospace", fontSize: '11px', padding: '10px', cursor: 'pointer', textAlign: 'center' },
 
     badgesCard: { background: '#1e1f1a', border: '3px solid #75715e', padding: '14px', marginTop: '0' },
     badge: { fontSize: '10px', fontWeight: 700, padding: '3px 8px', border: '2px solid #75715e', color: '#75715e', letterSpacing: '1px' },
