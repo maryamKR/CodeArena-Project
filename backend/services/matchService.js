@@ -170,7 +170,7 @@ class MatchService {
     const matchState = activeMatches.get(challengeId);
     if (!matchState) return;
 
-    const { challenge, players } = matchState;
+    const { challenge, players, questions } = matchState;
     const senderId = challenge.sender._id.toString();
     const receiverId = challenge.receiver._id.toString();
 
@@ -180,6 +180,11 @@ class MatchService {
     // Total time given for 10 questions (assuming 15s per question)
     const TIME_LIMIT = 150;
 
+    // Pull category from challenge or questions
+    const categoryId = challenge.category 
+      ? (challenge.category._id || challenge.category) 
+      : (questions[0]?.category || null);
+
     // Calculate XP for both using the existing secure score service
     const senderResult = await scoreService.submitScore(
       senderId,
@@ -187,7 +192,7 @@ class MatchService {
       challenge.difficulty,
       Math.max(0, TIME_LIMIT - senderState.timeTaken), // timeLeft
       TIME_LIMIT,
-      challenge.category ? (challenge.category._id || challenge.category) : null
+      categoryId
     );
 
     const receiverResult = await scoreService.submitScore(
@@ -196,7 +201,7 @@ class MatchService {
       challenge.difficulty,
       Math.max(0, TIME_LIMIT - receiverState.timeTaken), // timeLeft
       TIME_LIMIT,
-      challenge.category ? (challenge.category._id || challenge.category) : null
+      categoryId
     );
 
     // Determine winner
@@ -251,17 +256,22 @@ class MatchService {
         if (winnerId) {
           // Award XP to the winner for the questions they already answered
           let winnerXP = 0;
-          const { challenge } = matchState;
+          const { challenge, questions } = matchState;
           try {
             const TIME_LIMIT = 150;
             const winnerState = matchState.players[winnerId];
+
+            const categoryId = challenge.category 
+              ? (challenge.category._id || challenge.category) 
+              : (questions[0]?.category || null);
+
             const scoreResult = await scoreService.submitScore(
               winnerId,
               winnerState.correctCount,
               challenge.difficulty,
               Math.max(0, TIME_LIMIT - winnerState.timeTaken),
               TIME_LIMIT,
-              challenge.category ? (challenge.category._id || challenge.category) : null
+              categoryId
             );
             winnerXP = scoreResult.earnedXP;
 

@@ -15,7 +15,7 @@ import Challenge from './Pages/Challenge';
 import Matchmaking from './Pages/Matchmaking';
 import ResetPassword from './Pages/ResetPassword';
 import ForgotPassword from './Pages/ForgotPassword';
-import ChallengeNotification from './components/ChallengeNotification';
+import ChallengeNotification from './Components/ChallengeNotification';
 export default function App() {
   return (
     <AuthProvider>
