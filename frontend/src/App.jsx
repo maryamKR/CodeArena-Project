@@ -15,10 +15,12 @@ import Challenge from './Pages/Challenge';
 import Matchmaking from './Pages/Matchmaking';
 import ResetPassword from './Pages/ResetPassword';
 import ForgotPassword from './Pages/ForgotPassword';
+import ChallengeNotification from './components/ChallengeNotification';
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+      <ChallengeNotification />
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />
@@ -38,7 +40,6 @@ export default function App() {
             <Route path="/matchmaking" element={<Matchmaking />} />
             <Route path="/quiz/play" element={<QuizPlay />} />
             <Route path="/match/:challengeId" element={<Challenge />} />
-            
           </Route>
         </Routes>
       </BrowserRouter>
