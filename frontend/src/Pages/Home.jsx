@@ -83,10 +83,15 @@ useEffect(() => {
   if (!user) return;
   api.get(`/history/stats/${user.username}`)
     .then(res => {
-      const stats = res.data.data || {};
+      const statsArray = res.data.data || [];
+      
+      const statsMap = {};
+      statsArray.forEach(s => {
+        statsMap[s.categorySlug] = { solved: s.totalSolved };
+      });
       setCategories(prev => prev.map(cat => ({
         ...cat,
-        solved: stats[cat.id]?.solved || 0,
+        solved: statsMap[cat.id]?.solved || 0,
       })));
     })
     .catch(() => {});
