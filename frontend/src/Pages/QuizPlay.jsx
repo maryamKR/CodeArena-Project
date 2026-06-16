@@ -38,7 +38,9 @@ export default function Quiz() {
     const [exploding, setExploding] = useState(false);
     const [answers, setAnswers] = useState([]);
     const [review, setReview] = useState([]);
-    const [focusMode, setFocusMode] = useState(false);
+    const [focusMode, setFocusMode] = useState(() => {
+        return localStorage.getItem('ca_focus_mode') === 'true';
+    });
     const [confirmForfeit, setConfirmForfeit] = useState(false);
 
     // Fetch questions
@@ -147,6 +149,18 @@ export default function Quiz() {
         const t = setTimeout(() => handleNext(), AUTO_ADVANCE_MS);
         return () => clearTimeout(t);
     }, [result, handleNext]);
+
+    // Persist focus preference + ESC exits focus mode
+    useEffect(() => {
+        localStorage.setItem('ca_focus_mode', focusMode);
+
+        if (!focusMode) return;
+        const onKey = (e) => {
+            if (e.key === 'Escape') setFocusMode(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [focusMode]);
 
     // Timer — paused while the forfeit dialog is open
     useEffect(() => {

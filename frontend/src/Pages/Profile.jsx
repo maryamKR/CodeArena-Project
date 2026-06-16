@@ -22,6 +22,18 @@ const BADGE_COLORS = {
   'Streak 7': '#a6e22e',
 };
 
+// TODO: confirm exact criteria with Maryam's badge system
+const BADGE_INFO = {
+  'First Blood':   'Won your very first quiz',
+  'Perfect Score': 'Answered every question correctly in a quiz',
+  'Speed Demon':   'Finished a quiz with lots of time to spare',
+  '10 Wins':       'Won 10 quizzes',
+  'Centurion':     'Earned 100+ total XP',
+  'XP Master':     'Reached a top XP milestone',
+  'Streak 3':      'Played 3 days in a row',
+  'Streak 7':      'Played 7 days in a row',
+};
+
 export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -133,7 +145,11 @@ export default function Profile() {
               <div style={styles.sectionTag}>{'// badges_earned'}</div>
               <div style={styles.badgesWrap}>
                 {user?.badges?.length > 0 ? user.badges.map((badge, i) => (
-                  <div key={i} style={{ ...styles.badge, borderColor: BADGE_COLORS[badge] || '#75715e', color: BADGE_COLORS[badge] || '#75715e' }}>
+                  <div
+                    key={i}
+                    title={BADGE_INFO[badge] || 'Achievement unlocked'}
+                    style={{ ...styles.badge, borderColor: BADGE_COLORS[badge] || '#75715e', color: BADGE_COLORS[badge] || '#75715e', cursor: 'help' }}
+                  >
                     {badge}
                   </div>
                 )) : (
