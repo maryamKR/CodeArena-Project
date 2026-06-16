@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
 
 /* ============================================================
@@ -28,28 +28,10 @@ const NAV_LINKS = [
   { label: 'Profile', path: '/profile', authOnly: true },
 ];
 
-const USER_STATS = [
-  { val: '47', label: 'Quizzes played', color: '#a6e22e' },
-  { val: '320', label: 'Total XP', color: '#e6db74' },
-  { val: '#12', label: 'Global rank', color: '#66d9e8' },
-];
-
 const GLOBAL_STATS = [
   { val: '2,480', label: 'Players', color: '#a6e22e' },
   { val: '370', label: 'Questions', color: '#e6db74' },
   { val: '184', label: 'Played today', color: '#66d9e8' },
-];
-
-const TOP_PLAYERS = [
-  { rank: 1, name: 'amine_dev', xp: 2840, color: '#e6db74' },
-  { rank: 2, name: 'sara.codes', xp: 2615, color: '#75715e' },
-  { rank: 3, name: 'yass1ne', xp: 2402, color: '#f92672' },
-];
-
-const RECENT_ACTIVITY = [
-  { tag: 'JS · EASY', color: '#e6db74', score: '8/10', xp: 40, when: '2h ago' },
-  { tag: 'SQL · MEDIUM', color: '#f92672', score: '6/10', xp: 45, when: 'yesterday' },
-  { tag: 'PY · EASY', color: '#66d9e8', score: '10/10', xp: 60, when: '2 days ago' },
 ];
 
 export default function Home() {
@@ -61,9 +43,71 @@ export default function Home() {
   const [daily, setDaily] = useState(null);
   const [resetsIn, setResetsIn] = useState(0);
 
+  const [topPlayers, setTopPlayers] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [myRank, setMyRank] = useState(null);
+  const [categories, setCategories] = useState([]);
+
+  const USER_STATS = [
+  { val: user?.quizzesPlayed || 0, label: 'Quizzes played', color: '#a6e22e' },
+  { val: user?.totalXP || 0, label: 'Total XP', color: '#e6db74' },
+  { val: myRank ? `#${myRank.globalRank}` : '-', label: 'Global rank', color: '#66d9e8' },
+  ];
+
   const visibleLinks = NAV_LINKS.filter(link => !link.authOnly || user);
   const stats = user ? USER_STATS : GLOBAL_STATS;
-  const visibleCats = showAllCats ? CATEGORIES : CATEGORIES.slice(0, 4);
+  const visibleCats = showAllCats ? categories : categories.slice(0, 4);
+
+  
+
+  useEffect(() => {
+  // fetch categories
+  api.get('/categories')
+    .then(res => {
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setCategories(res.data.map(cat => ({
+          id: cat.slug,
+          label: cat.name,
+          short: cat.slug.toUpperCase().slice(0, 3),
+          count: cat.questionCount || 0,
+          solved: 0,
+          color: cat.color || '#a6e22e',
+        })));
+      }
+    })
+    .catch(() => {});
+
+  // fetch top players
+  api.get('/leaderboard?limit=3')
+    .then(res => setTopPlayers(res.data.data || []))
+    .catch(() => {});
+
+  if (user) {
+    // fetch my rank
+    api.get('/leaderboard/me')
+      .then(res => setMyRank(res.data.data))
+      .catch(() => {});
+
+    // fetch recent activity
+    api.get(`/history/${user.username}`)
+      .then(res => setRecentActivity(res.data.data?.slice(0, 3) || []))
+      .catch(() => {});
+  }
+}, [user]);
+
+
+useEffect(() => {
+  if (!user) return;
+  api.get(`/history/stats/${user.username}`)
+    .then(res => {
+      const stats = res.data.data || {};
+      setCategories(prev => prev.map(cat => ({
+        ...cat,
+        solved: stats[cat.id]?.solved || 0,
+      })));
+    })
+    .catch(() => {});
+}, [user]);
 
   // Fetch today's daily challenge (auth-only per API)
   useEffect(() => {
@@ -75,6 +119,7 @@ export default function Home() {
       })
       .catch(() => setDaily(null));
   }, [user]);
+
 
   // Live countdown
   useEffect(() => {
@@ -205,7 +250,7 @@ export default function Home() {
       </div>
 
       {/* Show more / less categories */}
-      {CATEGORIES.length > 4 && (
+      {categories.length > 4 && (
         <div style={styles.showMoreRow}>
           <button
             style={styles.showMoreBtn}
@@ -213,7 +258,7 @@ export default function Home() {
             onMouseEnter={e => { e.currentTarget.style.background = '#a6e22e'; e.currentTarget.style.color = '#272822'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a6e22e'; }}
           >
-            {showAllCats ? '− show less' : `+ show ${CATEGORIES.length - 4} more`}
+            {showAllCats ? '− show less' : `+ show ${categories.length - 4} more`}
           </button>
         </div>
       )}
@@ -248,7 +293,7 @@ export default function Home() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#f92672" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M12 2c0 0-5 4-5 9a5 5 0 0010 0c0-2-1-4-2-5 0 2-1 3-3 3s-2-2-2-3c0-2 2-4 2-4z" />
             </svg>
-            5 day streak
+            {user?.streak || 0} day streak
           </div>
         )}
       </div>
@@ -311,22 +356,19 @@ export default function Home() {
         <div style={styles.panel}>
           <div style={styles.panelTag}>{'// top_players'}</div>
           <div style={{ marginTop: '10px' }}>
-            {TOP_PLAYERS.map((p, i) => (
-              <div
-                key={p.rank}
-                style={{
-                  ...styles.lbRow,
-                  ...(i === TOP_PLAYERS.length - 1 ? { borderBottom: '2px dashed #3e3d32', paddingBottom: '8px' } : {}),
-                }}
-              >
-                <span><span style={{ color: p.color }}>#{p.rank}</span> {p.name}</span>
-                <span style={{ color: '#75715e' }}>{p.xp}</span>
+            {topPlayers.map((p, i) => (
+              <div key={p._id} style={{
+                ...styles.lbRow,
+                ...(i === topPlayers.length - 1 ? { borderBottom: '2px dashed #3e3d32', paddingBottom: '8px' } : {}),
+              }}>
+                <span><span style={{ color: i === 0 ? '#e6db74' : i === 1 ? '#c0c0c0' : '#cd7f32' }}>#{i + 1}</span> {p.username}</span>
+                <span style={{ color: '#75715e' }}>{p.totalXP}</span>
               </div>
             ))}
-            {user && (
+            {user && myRank && (
               <div style={{ ...styles.lbRow, color: '#66d9e8', paddingTop: '8px' }}>
-                <span>#12 you</span>
-                <span>320</span>
+                <span>#{myRank.globalRank} you</span>
+                <span>{myRank.totalXP}</span>
               </div>
             )}
           </div>
@@ -340,15 +382,22 @@ export default function Home() {
           <div style={styles.activityPanel}>
             <div style={styles.panelTag}>{'// recent_activity'}</div>
             <div style={styles.activityGrid}>
-              {RECENT_ACTIVITY.map((a) => (
-                <div key={a.tag + a.when} style={styles.activityCell}>
-                  <div style={{ ...styles.actTag, color: a.color }}>{a.tag}</div>
-                  <div style={styles.actScore}>
-                    {a.score} <span style={styles.actXp}>+{a.xp} XP</span>
+
+              {recentActivity.length > 0 ? recentActivity.map((a) => (
+                <div key={a._id} style={styles.activityCell}>
+                  <div style={{ ...styles.actTag, color: a.category?.color || '#e6db74' }}>
+                    {a.category?.name || '?'} · {a.difficulty}
                   </div>
-                  <div style={styles.actWhen}>{a.when}</div>
+                  <div style={styles.actScore}>
+                    {a.correctAnswers}/10 <span style={styles.actXp}>+{a.earnedXP} XP</span>
+                  </div>
+                  <div style={styles.actWhen}>{new Date(a.createdAt).toLocaleDateString()}</div>
                 </div>
-              ))}
+              )) : (
+                <div style={{ color: '#75715e', fontSize: '12px', gridColumn: '1/-1' }}>
+                  // no_activity_yet — play a quiz!
+                </div>
+              )}
             </div>
           </div>
         </div>

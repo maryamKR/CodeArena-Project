@@ -65,7 +65,10 @@ export default function Quiz() {
         return '#f92672';
     };
 
+    
+
     const handleNext = useCallback(async () => {
+        const isDailyChallenge = location.state?.isDailyChallenge || false;
         if (current + 1 >= questions.length) {
             try {
                 const res = await api.post('/scores', {
