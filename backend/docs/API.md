@@ -108,6 +108,7 @@ Returns the authenticated user's profile. Used for session checks and profile pa
   "_id": "...",
   "username": "testuser",
   "email": "test@example.com",
+  "role": "user",
   "totalXP": 0,
   "quizzesPlayed": 0,
   "badges": [],
@@ -487,6 +488,36 @@ Fetches the top 10 all-time users globally sorted by total XP descending. Return
 
 ## History Endpoints
 
+### Get User Category Stats
+`GET /history/stats/:username`
+
+Returns a breakdown of questions solved, total attempts, and average time left per category for a specific user.
+
+**Auth required:** yes
+
+**URL params:**
+- `username` (required) — the username of the user to fetch stats for
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "categoryId": "...",
+      "categoryName": "Frontend",
+      "categorySlug": "frontend",
+      "categoryColor": "#e34c26",
+      "totalSolved": 45,
+      "totalAttempts": 10,
+      "avgTimeLeft": 12.5
+    }
+  ]
+}
+```
+
+---
+
 ### Get User History
 `GET /history/:username`
 
@@ -559,6 +590,67 @@ Fetches a global feed of all quiz attempts.
       "difficulty": "Medium",
       "earnedXP": 110,
       "createdAt": "2023-10-10T14:48:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## User Endpoints
+
+### Search Users
+`GET /users/search`
+
+Search for other users by a partial username. Used for the 1v1 opponent picker.
+
+**Auth required:** yes
+
+**Query params:**
+- `q` (required) — the partial username to search for (case-insensitive)
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "username": "alex_dev",
+      "rank": "Intermediate",
+      "totalXP": 1200,
+      "badges": [],
+      "isOnline": true
+    }
+  ]
+}
+```
+
+---
+
+### Get User Category Stats
+`GET /users/:username/category-stats`
+
+Returns a breakdown of questions solved, total attempts, and average time left per category for a specific user.
+
+**Auth required:** yes
+
+**URL params:**
+- `username` (required) — the username of the user to fetch stats for
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "categoryId": "...",
+      "categoryName": "Frontend",
+      "categorySlug": "frontend",
+      "categoryColor": "#e34c26",
+      "totalSolved": 45,
+      "totalAttempts": 10,
+      "avgTimeLeft": 12.5
     }
   ]
 }

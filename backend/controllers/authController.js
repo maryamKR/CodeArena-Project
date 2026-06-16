@@ -49,6 +49,7 @@ exports.getMe = async (req, res, next) => {
       badges: user.badges,
       rank: user.rank,
       streak: user.streak,
+      role: user.role,
       isOnline: user.isOnline,
       createdAt: user.createdAt,
     });
