@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket/socket';
-import api from '../api/axios';
 
 export default function ChallengeNotification() {
   const navigate = useNavigate();
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    // Listen for incoming challenges
+    
+    if (!socket.connected) socket.connect();
+
     socket.on('challenge_received', (data) => {
       setNotification(data);
     });
 
-    // Listen for challenge accepted by opponent
     socket.on('challenge_accepted', (data) => {
-      // navigate to matchmaking or match
       navigate(`/match/${data.id}`, {
         state: { challengeId: data.id }
       });
@@ -27,67 +26,65 @@ export default function ChallengeNotification() {
     };
   }, []);
 
-  const handleAccept = async () => {
-    try {
-      await api.put(`/challenges/${notification.id}/accept`);
-      setNotification(null);
-      navigate(`/match/${notification.id}`, {
-        state: { challengeId: notification.id }
-      });
-    } catch {
-      setNotification(null);
-    }
-  };
-
-  const handleDecline = async () => {
-    try {
-      await api.put(`/challenges/${notification.id}/decline`);
-    } catch {
-      // ignore
-    }
-    setNotification(null);
-  };
-
   if (!notification) return null;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.card}>
-        <div style={styles.tag}>{'// challenge_received'}</div>
-        <div style={styles.message}>
-          <span style={styles.sender}>{notification.sender?.username}</span>
-          {' challenged you!'}
-        </div>
-        <div style={styles.details}>
-          <span style={styles.pill}>{notification.category?.name || 'Any'}</span>
-          <span style={styles.pill}>{notification.difficulty}</span>
-        </div>
-        {notification.message && (
-          <div style={styles.challengeMsg}>"{notification.message}"</div>
-        )}
-        <div style={styles.btnRow}>
-          <button style={styles.acceptBtn} onClick={handleAccept}>
-            ✅ ACCEPT
-          </button>
-          <button style={styles.declineBtn} onClick={handleDecline}>
-            ✕ DECLINE
-          </button>
-        </div>
-      </div>
+  <div style={styles.banner}>
+    <div style={styles.bannerContent}>
+      <span style={styles.icon}>⚔</span>
+      <span style={styles.text}>
+        <span style={styles.sender}>{notification.sender?.username}</span>
+        {' challenged you!'}
+      </span>
+      <button 
+        style={styles.viewBtn} 
+        onClick={() => { setNotification(null); navigate('/dashboard'); }}
+      >
+        VIEW INVITE
+      </button>
+      <button style={styles.closeBtn} onClick={() => setNotification(null)}>×</button>
     </div>
-  );
+  </div>
+);
 }
 
 const styles = {
-  overlay: { position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 },
-  card: { background: '#1e1f1a', border: '3px solid #a6e22e', padding: '20px', maxWidth: '320px', boxShadow: '4px 4px 0 #3e3d32', fontFamily: "'Space Mono', monospace" },
-  tag: { fontSize: '10px', background: '#3e3d32', color: '#a6e22e', display: 'inline-block', padding: '2px 8px', marginBottom: '10px', letterSpacing: '2px' },
-  message: { fontSize: '14px', fontWeight: 700, color: '#f8f8f2', marginBottom: '10px' },
-  sender: { color: '#a6e22e' },
-  details: { display: 'flex', gap: '8px', marginBottom: '10px' },
-  pill: { fontSize: '10px', fontWeight: 700, padding: '2px 8px', border: '2px solid #75715e', color: '#75715e', textTransform: 'uppercase' },
-  challengeMsg: { fontSize: '11px', color: '#75715e', fontStyle: 'italic', marginBottom: '12px', borderLeft: '3px solid #3e3d32', paddingLeft: '8px' },
-  btnRow: { display: 'flex', gap: '8px' },
-  acceptBtn: { flex: 1, fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '2px solid #a6e22e', padding: '8px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
-  declineBtn: { flex: 1, fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '2px solid #f92672', padding: '8px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+  banner: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    background: '#f92672',
+    borderBottom: '3px solid #d4305f',
+    padding: '10px 24px',
+  },
+  bannerContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    fontFamily: "'Space Mono', monospace",
+  },
+  icon: { fontSize: '18px', flexShrink: 0 },
+  text: { flex: 1, fontSize: '13px', color: '#f8f8f2', fontWeight: 700 },
+  sender: { color: '#e6db74' },
+  viewBtn: {
+    fontFamily: "'Space Mono', monospace",
+    fontSize: '11px',
+    fontWeight: 700,
+    background: 'transparent',
+    color: '#a6e22e',
+    border: '2px solid #a6e22e',
+    padding: '5px 14px',
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    flexShrink: 0,
+  },
+  closeBtn: {
+    background: 'transparent', border: 'none', color: '#f8f8f2',
+    fontSize: '20px', cursor: 'pointer', flexShrink: 0, lineHeight: 1,
+  },
 };

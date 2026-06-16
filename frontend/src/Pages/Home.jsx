@@ -3,23 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
 
-/* ============================================================
-   MOCK DATA — each block maps to one Flask endpoint for Asmaa
-   ============================================================ */
-
-const CATEGORIES = [
-  { id: 'js', label: 'JavaScript', short: 'JS', count: 142, solved: 34, color: '#e6db74' },
-  { id: 'py', label: 'Python', short: 'PY', count: 98, solved: 12, color: '#66d9e8' },
-  { id: 'sql', label: 'SQL', short: 'SQL', count: 76, solved: 30, color: '#f92672' },
-  { id: 'htm', label: 'HTML/CSS', short: 'HTM', count: 10, solved: 0, color: '#fd971f' },
-  { id: 'algo', label: 'Algorithms', short: 'ALG', count: 3, solved: 0, color: '#a6e22e' },
-  { id: 'rea', label: 'React', short: 'REA', count: 3, solved: 0, color: '#66d9e8' },
-  { id: 'nod', label: 'Node.js', short: 'NOD', count: 3, solved: 0, color: '#a6e22e' },
-  { id: 'dev', label: 'DevOps', short: 'DEV', count: 3, solved: 0, color: '#fd971f' },
-  { id: 'git', label: 'Git', short: 'GIT', count: 3, solved: 0, color: '#f92672' },
-  { id: 'doc', label: 'Docker', short: 'DOC', count: 3, solved: 0, color: '#66d9e8' },
-];
-
 const NAV_LINKS = [
   { label: 'Home', path: '/' },
   { label: 'Dashboard', path: '/dashboard', authOnly: true },
