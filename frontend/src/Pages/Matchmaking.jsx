@@ -180,7 +180,9 @@ export default function Matchmaking() {
 
                 {/* Opponent */}
                 <div style={styles.playerCard}>
-                  <div style={{ ...styles.foundAvatar, background: '#f92672', color: '#fff' }}>?</div>
+                  <div style={{ ...styles.foundAvatar, background: '#f92672', color: '#fff' }}>
+                    {opponent?.username?.[0]?.toUpperCase() || '?'}
+                  </div>
                   <div style={styles.foundName}>{opponent?.username || 'opponent'}</div>
                   <div style={styles.foundRank}>{opponent?.rank || 'found!'}</div>
                 </div>

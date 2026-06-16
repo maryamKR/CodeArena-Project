@@ -14,7 +14,7 @@ export default function Challenge() {
   const category = location.state?.category || 'js';
   const difficulty = location.state?.difficulty || 'easy';
   const challengeId = location.state?.challengeId || null;
-  const [opponent, setOpponent] = useState(location.state?.opponent || null);
+  const [opponent] = useState(location.state?.opponent || null);
 
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -191,7 +191,9 @@ socket.on('match_over', (data) => {
             </div>
             <div style={styles.vsText}>VS</div>
             <div style={styles.finalPlayer}>
-              <div style={{ ...styles.finalAvatar, background: '#f92672', color: '#fff' }}>?</div>
+              <div style={{ ...styles.finalAvatar, background: '#f92672', color: '#fff' }}>
+                {opponent?.username?.[0]?.toUpperCase() || '?'}
+              </div>
               <div style={styles.finalName}>{opponent?.username || 'opponent'}</div>
               <div style={{ ...styles.finalScore, color: '#f92672' }}>{oppScore}</div>
             </div>
@@ -256,7 +258,9 @@ socket.on('match_over', (data) => {
           </div>
 
           <div style={styles.scorePlayer}>
-            <div style={{ ...styles.scoreAvatar, background: '#f92672', color: '#fff' }}>?</div>
+            <div style={{ ...styles.scoreAvatar, background: '#f92672', color: '#fff' }}>
+              {opponent?.username?.[0]?.toUpperCase() || '?'}
+            </div>
             <div style={styles.scoreName}>{opponent?.username || 'opponent'}</div>
             <div style={{ ...styles.scoreNum, color: '#f92672' }}>{oppScore}</div>
           </div>
