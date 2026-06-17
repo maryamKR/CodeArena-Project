@@ -26,6 +26,7 @@ export default function Challenge() {
   const [winner, setWinner] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [waiting, setWaiting] = useState(false); // finished locally, awaiting server result
 
   const question = questions[current];
 
@@ -56,26 +57,35 @@ export default function Challenge() {
     });
 
     socket.on('opponent_progress', (data) => {
-      setOppScore(data.questionsAnswered);
+      // Only update oppScore — ignore events about ourselves
+      if (String(data.userId) !== String(user._id)) {
+        setOppScore(data.questionsAnswered);
+      }
     });
 
-socket.on('match_over', (data) => {
-  const myResult = data.results?.[String(user._id)];
-  const oppResult = Object.entries(data.results || {})
-    .find(([id]) => id !== String(user._id))?.[1];
+    socket.on('match_over', (data) => {
+      const myResult = data.results?.[String(user._id)];
+      const oppResult = Object.entries(data.results || {})
+        .find(([id]) => id !== String(user._id))?.[1];
 
-  if (myResult) setMyScore(myResult.correctCount || 0);
-  if (oppResult) setOppScore(oppResult.correctCount || 0);
+      // Use authoritative server scores
+      if (myResult) setMyScore(myResult.correctCount ?? 0);
+      if (oppResult) setOppScore(oppResult.correctCount ?? 0);
 
-  if (String(data.winnerId) === String(user._id)) {
-    setWinner('you');
-  } else if (data.forfeit && String(data.forfeitedBy) !== String(user._id)) {
-    setWinner('you');
-  } else {
-    setWinner('opponent');
-  }
-  setGameOver(true);
-});
+      // Determine winner — null winnerId means draw
+      if (data.winnerId === null || data.winnerId === undefined) {
+        setWinner('draw');
+      } else if (String(data.winnerId) === String(user._id)) {
+        setWinner('you');
+      } else if (data.forfeit && String(data.forfeitedBy) !== String(user._id)) {
+        setWinner('you');
+      } else {
+        setWinner('opponent');
+      }
+
+      setWaiting(false);
+      setGameOver(true);
+    });
 
     return () => {
       socket.off('connect');
@@ -105,14 +115,15 @@ socket.on('match_over', (data) => {
       } catch {
         // fallback
       }
-
-      socket.emit('submit_answer', {
-        challengeId,
-        questionId: questions[current]?._id,
-        answer: answer,
-        timeTakenSec: TIMER_MAX - timer,
-      });
     }
+
+    // Always emit to the backend so it knows we've passed this question, even if we timed out
+    socket.emit('submit_answer', {
+      challengeId,
+      questionId: questions[current]?._id,
+      answer: answer,
+      timeTakenSec: TIMER_MAX - timer,
+    });
   };
 
   // Timer
@@ -128,11 +139,8 @@ socket.on('match_over', (data) => {
 
   const handleNext = () => {
     if (current + 1 >= questions.length) {
-      const finalMyScore = myScore + (selected === question?.correct_answer ? 1 : 0);
-      if (finalMyScore > oppScore) setWinner('you');
-      else if (oppScore > finalMyScore) setWinner('opponent');
-      else setWinner('draw');
-      setGameOver(true);
+      // All questions answered locally — wait for the server's authoritative match_over
+      setWaiting(true);
       return;
     }
     setCurrent(c => c + 1);
@@ -153,11 +161,20 @@ socket.on('match_over', (data) => {
   }, [answered, gameOver]);
 
   if (loading) return (
-  <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ color: '#75715e', fontFamily: "'Space Mono', monospace" }}>
-      {'// waiting_for_opponent...'}
+    <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: '#75715e', fontFamily: "'Space Mono', monospace" }}>
+        {'// waiting_for_opponent...'}
+      </div>
     </div>
-  </div>
+  );
+
+  if (waiting) return (
+    <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace" }}>
+        <div style={{ color: '#a6e22e', fontSize: '18px', fontWeight: 700, marginBottom: '12px' }}>// done!</div>
+        <div style={{ color: '#75715e', fontSize: '13px' }}>waiting_for_opponent...</div>
+      </div>
+    </div>
   );
   if (gameOver) return (
     <div style={styles.page}>

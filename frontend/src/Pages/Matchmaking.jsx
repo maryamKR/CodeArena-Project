@@ -48,36 +48,48 @@ export default function Matchmaking() {
   const [challengeId, setChallengeId] = useState(null);
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  // Connect socket first
-  socket.connect();
+    const joinMatchmaking = () => {
+      api.post('/matchmaking/join', {
+        difficulty,
+        categorySlug: category,
+        socketId: socket.id,
+      }).catch(err => {
+        console.error('Failed to join matchmaking:', err);
+      });
+    };
 
-  
-  socket.on('connect', () => {
-    api.post('/matchmaking/join', {
-      difficulty,
-      categorySlug: category,
-      socketId: socket.id, 
-    }).catch(() => {});
-  });
+    // Connect socket first if not connected
+    if (!socket.connected) {
+      socket.connect();
+    }
 
-  // Listen for match found
-  socket.on('matched', (data) => {
-    console.log('matched data:', data);
-    setOpponent(data.opponent);
-    setChallengeId(data.challengeId);
-    setStatus('found');
-  });
+    socket.on('connect', joinMatchmaking);
 
-  // Cleanup
-  return () => {
-    socket.off('connect');
-    socket.off('matched');
-    api.delete('/matchmaking/leave').catch(() => {});
-    socket.disconnect();
-  };
-}, [user]);
+    // If already connected, manually call the join logic
+    if (socket.connected) {
+      joinMatchmaking();
+    }
+
+    // Listen for match found
+    socket.on('matched', (data) => {
+      console.log('matched data:', data);
+      setOpponent(data.opponent);
+      setChallengeId(data.challengeId);
+      setStatus('found');
+    });
+
+    // Cleanup
+    return () => {
+      socket.off('connect', joinMatchmaking);
+      socket.off('matched');
+      // Leave the matchmaking queue if we unmount before a match is found
+      if (status === 'searching') {
+        api.delete('/matchmaking/leave').catch(() => {});
+      }
+    };
+  }, [user, category, difficulty, status]);
 
   // Countdown after match found
   useEffect(() => {

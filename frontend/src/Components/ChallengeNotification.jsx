@@ -7,22 +7,31 @@ export default function ChallengeNotification() {
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    
+    const handleChallengeReceived = (data) => {
+      setNotification(data);
+    };
+
+    const handleChallengeAccepted = (data) => {
+      navigate(`/match/${data.id}`, {
+        state: {
+          challengeId: data.id,
+          opponent: data.receiver,
+          category: data.category,
+          difficulty: data.difficulty,
+        }
+      });
+    };
+
+    // Register listeners regardless of connection state — they survive reconnects
+    socket.on('challenge_received', handleChallengeReceived);
+    socket.on('challenge_accepted', handleChallengeAccepted);
+
+    // Connect only if not already connected
     if (!socket.connected) socket.connect();
 
-    socket.on('challenge_received', (data) => {
-      setNotification(data);
-    });
-
-    socket.on('challenge_accepted', (data) => {
-      navigate(`/match/${data.id}`, {
-        state: { challengeId: data.id }
-      });
-    });
-
     return () => {
-      socket.off('challenge_received');
-      socket.off('challenge_accepted');
+      socket.off('challenge_received', handleChallengeReceived);
+      socket.off('challenge_accepted', handleChallengeAccepted);
     };
   }, []);
 

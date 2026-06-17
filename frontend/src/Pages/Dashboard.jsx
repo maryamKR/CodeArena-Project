@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import api from '../API/axios';
+import socket from '../socket/socket';
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
@@ -67,6 +68,22 @@ export default function Dashboard() {
             .catch(() => setInvites([]))
             .finally(() => setInvitesLoading(false));
     }, [user]);
+
+
+    useEffect(() => {
+        if (!socket.connected) socket.connect();
+
+        socket.on('challenge_received', (data) => {
+            setInvites(prev => {
+            if (prev.some(i => i.id === data.id)) return prev;
+            return [...prev, data];
+            });
+        });
+
+        return () => {
+            socket.off('challenge_received');
+        };
+    }, []);
 
     // Close the username dropdown when clicking outside it
     useEffect(() => {
