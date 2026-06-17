@@ -55,9 +55,10 @@ const styles = {
     left: 0,
     right: 0,
     zIndex: 9999,
-    background: '#f92672',
-    borderBottom: '3px solid #d4305f',
+    background: '#1e1f1a',
+    borderBottom: '3px solid #f92672',
     padding: '10px 24px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
   },
   bannerContent: {
     display: 'flex',
@@ -67,7 +68,7 @@ const styles = {
     margin: '0 auto',
     fontFamily: "'Space Mono', monospace",
   },
-  icon: { fontSize: '18px', flexShrink: 0 },
+  icon: { fontSize: '18px', flexShrink: 0, color: '#f92672' },
   text: { flex: 1, fontSize: '13px', color: '#f8f8f2', fontWeight: 700 },
   sender: { color: '#e6db74' },
   viewBtn: {
@@ -75,8 +76,8 @@ const styles = {
     fontSize: '11px',
     fontWeight: 700,
     background: 'transparent',
-    color: '#a6e22e',
-    border: '2px solid #a6e22e',
+    color: '#66d9e8',
+    border: '2px solid #66d9e8',
     padding: '5px 14px',
     cursor: 'pointer',
     textTransform: 'uppercase',
@@ -84,7 +85,7 @@ const styles = {
     flexShrink: 0,
   },
   closeBtn: {
-    background: 'transparent', border: 'none', color: '#f8f8f2',
+    background: 'transparent', border: 'none', color: '#75715e',
     fontSize: '20px', cursor: 'pointer', flexShrink: 0, lineHeight: 1,
   },
 };
