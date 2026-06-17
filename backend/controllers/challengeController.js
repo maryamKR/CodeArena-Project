@@ -22,7 +22,7 @@ exports.sendChallenge = async (req, res, next) => {
     const io = req.app.get('io');
     if (io) {
         io.toUser(challenge.receiver._id).emit('challenge_received', {
-            id: challenge.id,
+            id: challenge.challengeId,
             sender: {
                 _id: req.user._id,
                 username: req.user.username,
@@ -55,14 +55,17 @@ exports.acceptChallenge = async (req, res, next) => {
 
     const challenge = await challengeService.acceptChallenge(id, req.user._id);
 
-    // Emit real-time notification to the sender
+    // Emit real-time notification to the sender (User A)
     const io = req.app.get('io');
     if (io) {
         io.toUser(challenge.sender._id).emit('challenge_accepted', {
-            id: challenge.id,
+            id: challenge.challengeId,
+            category: challenge.category?.slug || null,
+            difficulty: challenge.difficulty,
             receiver: {
                 _id: req.user._id,
-                username: req.user.username
+                username: req.user.username,
+                rank: req.user.rank,
             }
         });
     }
@@ -92,7 +95,7 @@ exports.declineChallenge = async (req, res, next) => {
     const io = req.app.get('io');
     if (io) {
         io.toUser(challenge.sender._id).emit('challenge_declined', {
-            id: challenge.id,
+            id: challenge.challengeId,
             receiver: {
                 _id: req.user._id,
                 username: req.user.username
