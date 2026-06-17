@@ -23,6 +23,14 @@ export default function Dashboard() {
     const [opponent, setOpponent] = useState('');
     const [challengeMsg, setChallengeMsg] = useState(null); // { type: 'error'|'success', text }
     const [sending, setSending] = useState(false);
+    const [categories, setCategories] = useState([]);
+    const [chCategory, setChCategory] = useState('');   // '' = any
+    const [chDifficulty, setChDifficulty] = useState('Easy');
+
+    // Pending invites state
+    const [invites, setInvites] = useState([]);
+    const [invitesLoading, setInvitesLoading] = useState(true);
+    const [actioningId, setActioningId] = useState(null); // id being accepted/declined
 
     useEffect(() => {
         if (!user?._id) return;
@@ -34,7 +42,14 @@ export default function Dashboard() {
             .catch(() => setHistory([]));
         api.get('/leaderboard/me')
             .then(res => setMyRank(res.data.data))
-            .catch(() => {});
+            .catch(() => { });
+        api.get('/categories')
+            .then(res => setCategories(Array.isArray(res.data) ? res.data : []))
+            .catch(() => setCategories([]));
+        api.get('/challenges/pending')
+            .then(res => setInvites(res.data.data || []))
+            .catch(() => setInvites([]))
+            .finally(() => setInvitesLoading(false));
     }, [user]);
 
     const handleLogout = async () => {
@@ -51,20 +66,53 @@ export default function Dashboard() {
         setSending(true);
         setChallengeMsg(null);
         try {
-            await api.post('/challenges', { receiverUsername: name });
+            const body = { receiverUsername: name, difficulty: chDifficulty };
+            if (chCategory) body.category = chCategory;   // only send if chosen
+            await api.post('/challenges', body);
             setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
             setOpponent('');
         } catch (err) {
             const status = err?.response?.status;
             const text =
                 status === 404 ? 'No player found with that username' :
-                status === 409 ? 'You already have a pending challenge with this player' :
-                status === 400 ? 'You cannot challenge yourself' :
-                status === 429 ? 'Too many challenges — try again later' :
-                'Failed to send challenge';
+                    status === 409 ? 'You already have a pending challenge with this player' :
+                        status === 400 ? 'You cannot challenge yourself' :
+                            status === 429 ? 'Too many challenges — try again later' :
+                                'Failed to send challenge';
             setChallengeMsg({ type: 'error', text });
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleAcceptInvite = async (inv) => {
+        setActioningId(inv.id);
+        try {
+            await api.put(`/challenges/${inv.id}/accept`);
+            navigate(`/match/${inv.id}`, {
+                state: {
+                    challengeId: inv.id,
+                    opponent: inv.sender,
+                    category: inv.category?.slug,
+                    difficulty: inv.difficulty,
+                },
+            });
+        } catch {
+            // if accept fails (e.g. expired), drop it from the list
+            setInvites(prev => prev.filter(i => i.id !== inv.id));
+            setActioningId(null);
+        }
+    };
+
+    const handleDeclineInvite = async (inv) => {
+        setActioningId(inv.id);
+        try {
+            await api.put(`/challenges/${inv.id}/decline`);
+        } catch {
+            // ignore — we remove it either way
+        } finally {
+            setInvites(prev => prev.filter(i => i.id !== inv.id));
+            setActioningId(null);
         }
     };
 
@@ -82,7 +130,7 @@ export default function Dashboard() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-                        
+
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -142,6 +190,49 @@ export default function Dashboard() {
                     ))}
                 </div>
 
+                {/* Challenge invites */}
+                <div style={styles.sectionTag}>{'// challenge_invites'}</div>
+                <div style={styles.invitesCard}>
+                    {invitesLoading ? (
+                        <div style={styles.emptyTag}>{'// loading_invites...'}</div>
+                    ) : invites.length === 0 ? (
+                        <div style={styles.emptyTag}>{'// no_pending_challenges'}</div>
+                    ) : (
+                        invites.map((inv, i) => (
+                            <div key={inv.id} style={{ ...styles.inviteRow, borderBottom: i < invites.length - 1 ? '2px solid #3e3d32' : 'none' }}>
+                                <div style={styles.inviteLeft}>
+                                    <span style={styles.inviteFrom}>
+                                        {inv.sender?.isOnline && <span style={styles.onlineDot} />}
+                                        {inv.sender?.username || 'someone'}
+                                    </span>
+                                    <span style={styles.inviteMeta}>
+                                        challenges you
+                                        {inv.category?.name ? ` · ${inv.category.name}` : ''}
+                                        {inv.difficulty ? ` · ${inv.difficulty}` : ''}
+                                    </span>
+                                    {inv.message && <span style={styles.inviteMessage}>"{inv.message}"</span>}
+                                </div>
+                                <div style={styles.inviteBtns}>
+                                    <button
+                                        style={{ ...styles.acceptBtn, opacity: actioningId === inv.id ? 0.6 : 1 }}
+                                        onClick={() => handleAcceptInvite(inv)}
+                                        disabled={actioningId === inv.id}
+                                    >
+                                        ✓ ACCEPT
+                                    </button>
+                                    <button
+                                        style={{ ...styles.declineBtn, opacity: actioningId === inv.id ? 0.6 : 1 }}
+                                        onClick={() => handleDeclineInvite(inv)}
+                                        disabled={actioningId === inv.id}
+                                    >
+                                        ✕ DECLINE
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
                 <div style={styles.mainGrid}>
 
                     {/* Left */}
@@ -193,23 +284,46 @@ export default function Dashboard() {
                                             Challenge a Friend
                                         </button>
                                     ) : (
-                                        <div style={styles.challengeForm}>
-                                            <input
-                                                style={styles.challengeInput}
-                                                type="text"
-                                                placeholder="opponent_username"
-                                                value={opponent}
-                                                onChange={e => setOpponent(e.target.value)}
-                                                onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
-                                                autoFocus
-                                            />
-                                            <button
-                                                style={{ ...styles.challengeSendBtn, opacity: sending ? 0.6 : 1 }}
-                                                onClick={handleSendChallenge}
-                                                disabled={sending}
-                                            >
-                                                {sending ? '...' : 'SEND'}
-                                            </button>
+                                        <div style={styles.challengeFormCol}>
+                                            <div style={styles.challengeSelectRow}>
+                                                <select
+                                                    style={styles.challengeSelect}
+                                                    value={chCategory}
+                                                    onChange={e => setChCategory(e.target.value)}
+                                                >
+                                                    <option value="">any category</option>
+                                                    {categories.map(c => (
+                                                        <option key={c._id} value={c._id}>{c.name}</option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    style={styles.challengeSelect}
+                                                    value={chDifficulty}
+                                                    onChange={e => setChDifficulty(e.target.value)}
+                                                >
+                                                    <option value="Easy">Easy</option>
+                                                    <option value="Medium">Medium</option>
+                                                    <option value="Hard">Hard</option>
+                                                </select>
+                                            </div>
+                                            <div style={styles.challengeForm}>
+                                                <input
+                                                    style={styles.challengeInput}
+                                                    type="text"
+                                                    placeholder="opponent_username"
+                                                    value={opponent}
+                                                    onChange={e => setOpponent(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    style={{ ...styles.challengeSendBtn, opacity: sending ? 0.6 : 1 }}
+                                                    onClick={handleSendChallenge}
+                                                    disabled={sending}
+                                                >
+                                                    {sending ? '...' : 'SEND'}
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
 
@@ -318,6 +432,17 @@ const styles = {
     statVal: { fontSize: '26px', fontWeight: 700 },
     statLabel: { fontSize: '10px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' },
 
+    invitesCard: { background: '#1e1f1a', border: '3px solid #75715e', marginBottom: '28px', boxShadow: '4px 4px 0 #3e3d32' },
+    inviteRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', gap: '16px', flexWrap: 'wrap' },
+    inviteLeft: { display: 'flex', flexDirection: 'column', gap: '4px' },
+    inviteFrom: { fontSize: '14px', fontWeight: 700, color: '#f8f8f2', display: 'flex', alignItems: 'center' },
+    inviteMeta: { fontSize: '11px', color: '#75715e' },
+    inviteMessage: { fontSize: '11px', color: '#e6db74', fontStyle: 'italic', marginTop: '2px' },
+    onlineDot: { width: '7px', height: '7px', borderRadius: '50%', background: '#a6e22e', marginRight: '8px', display: 'inline-block' },
+    inviteBtns: { display: 'flex', gap: '8px', flexShrink: 0 },
+    acceptBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '2px solid #a6e22e', padding: '7px 14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+    declineBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '2px solid #f92672', padding: '7px 14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
+
     mainGrid: { display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' },
 
     sectionTag: { fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '12px', letterSpacing: '2px' },
@@ -334,6 +459,9 @@ const styles = {
     orText: { fontSize: '9px', color: '#75715e', letterSpacing: '2px' },
     friendBtn: { width: '100%', background: 'transparent', color: '#f92672', border: '2px solid #f92672', fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '9px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', transition: 'all 0.15s' },
     challengeForm: { display: 'flex', gap: '6px' },
+    challengeFormCol: { display: 'flex', flexDirection: 'column', gap: '6px' },
+    challengeSelectRow: { display: 'flex', gap: '6px' },
+    challengeSelect: { flex: 1, background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '10px', padding: '7px 8px', outline: 'none', cursor: 'pointer' },
     challengeInput: { flex: 1, background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '11px', padding: '8px 10px', outline: 'none' },
     challengeSendBtn: { background: '#f92672', color: '#f8f8f2', border: 'none', fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
     challengeMsg: { fontFamily: "'Space Mono', monospace", fontSize: '10px', fontWeight: 700, padding: '6px 8px', border: '2px solid', letterSpacing: '0.5px' },

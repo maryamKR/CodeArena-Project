@@ -6,7 +6,7 @@ export default function Results() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { score = 0, total = 0, category = 'js', difficulty = 'easy', review = [] } = location.state || {};
+  const { score = 0, total = 0, category = 'js', difficulty = 'easy', review = [], timeTaken = null } = location.state || {};
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
   const xpEarned = score * 10;
 
@@ -20,6 +20,12 @@ export default function Results() {
 
   const msg = getMessage();
   const fmt = (b) => (b ? 'TRUE' : 'FALSE');
+  const fmtTime = (secs) => {
+    if (secs == null) return '—';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
 
   return (
     <div style={styles.page}>
@@ -75,6 +81,10 @@ export default function Results() {
                 <div style={styles.breakdownItem}>
                   <span style={{ ...styles.breakdownVal, color: '#f92672' }}>{difficulty}</span>
                   <span style={styles.breakdownLabel}>difficulty</span>
+                </div>
+                <div style={styles.breakdownItem}>
+                  <span style={{ ...styles.breakdownVal, color: '#fd971f' }}>{fmtTime(timeTaken)}</span>
+                  <span style={styles.breakdownLabel}>time taken</span>
                 </div>
               </div>
             </div>

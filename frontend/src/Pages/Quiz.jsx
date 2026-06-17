@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useLocation } from 'react-router-dom';
@@ -29,6 +29,13 @@ export default function Quiz() {
     const [challengeMsg, setChallengeMsg] = useState(null); // { type, text }
     const [sending, setSending] = useState(false);
 
+    // Username search state
+    const [results, setResults] = useState([]);
+    const [searching, setSearching] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const debounceRef = useRef(null);
+    const searchWrapRef = useRef(null);
+
     useEffect(() => {
         api.get('/categories')
             .then(res => {
@@ -45,7 +52,56 @@ export default function Quiz() {
             .catch(() => {});
     }, []);
 
+    // Close the username dropdown when clicking outside it
+    useEffect(() => {
+        if (!showDropdown) return;
+        const onClickAway = (e) => {
+            if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', onClickAway);
+        return () => document.removeEventListener('mousedown', onClickAway);
+    }, [showDropdown]);
+
     const selectedCategory = categories.find(c => c.slug === category);
+
+    // Debounced username search
+    const handleOpponentChange = (value) => {
+        setOpponent(value);
+        setChallengeMsg(null);
+
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+
+        const q = value.trim();
+        if (q.length < 3) {
+            setResults([]);
+            setShowDropdown(false);
+            return;
+        }
+
+        debounceRef.current = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const res = await api.get(`/users/search?q=${encodeURIComponent(q)}`);
+                // drop my own username from results
+                const list = (res.data.data || []).filter(u => u.username !== user?.username);
+                setResults(list);
+                setShowDropdown(true);
+            } catch {
+                setResults([]);
+                setShowDropdown(false);
+            } finally {
+                setSearching(false);
+            }
+        }, 300);
+    };
+
+    const pickOpponent = (username) => {
+        setOpponent(username);
+        setResults([]);
+        setShowDropdown(false);
+    };
 
     const handleStart = () => {
         if (!category) return;
@@ -68,6 +124,7 @@ export default function Quiz() {
         }
         setSending(true);
         setChallengeMsg(null);
+        setShowDropdown(false);
         try {
             await api.post('/challenges', {
                 receiverUsername: name,
@@ -76,6 +133,7 @@ export default function Quiz() {
             });
             setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
             setOpponent('');
+            setResults([]);
         } catch (err) {
             const status = err?.response?.status;
             const text =
@@ -166,7 +224,7 @@ export default function Quiz() {
                         <div style={styles.subChoiceRow}>
                             <button
                                 style={{ ...styles.subChoiceBtn, ...(oneVoneType === 'random' ? styles.subChoiceActive : {}) }}
-                                onClick={() => { setOneVoneType('random'); setChallengeMsg(null); }}
+                                onClick={() => { setOneVoneType('random'); setChallengeMsg(null); setShowDropdown(false); }}
                             >
                                 ⚔ Random Opponent
                             </button>
@@ -179,18 +237,47 @@ export default function Quiz() {
                         </div>
                     )}
 
-                    {/* Friend: username input shown up top, right after selecting Friend */}
+                    {/* Friend: username input + live search dropdown */}
                     {isFriend && (
                         <div style={styles.opponentBlock}>
                             <div style={styles.opponentLabel}>{'// opponent_username'}</div>
-                            <input
-                                style={styles.challengeInput}
-                                type="text"
-                                placeholder="opponent_username"
-                                value={opponent}
-                                onChange={e => setOpponent(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
-                            />
+                            <div style={styles.searchWrap} ref={searchWrapRef}>
+                                <input
+                                    style={styles.challengeInput}
+                                    type="text"
+                                    placeholder="start typing a username..."
+                                    value={opponent}
+                                    onChange={e => handleOpponentChange(e.target.value)}
+                                    onFocus={() => { if (results.length > 0) setShowDropdown(true); }}
+                                    onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
+                                    autoComplete="off"
+                                />
+                                {showDropdown && (
+                                    <div style={styles.dropdown}>
+                                        {searching ? (
+                                            <div style={styles.dropdownEmpty}>{'// searching...'}</div>
+                                        ) : results.length === 0 ? (
+                                            <div style={styles.dropdownEmpty}>{'// no_players_found'}</div>
+                                        ) : (
+                                            results.map((u) => (
+                                                <div
+                                                    key={u._id}
+                                                    style={styles.dropdownRow}
+                                                    onClick={() => pickOpponent(u.username)}
+                                                    onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <span style={styles.dropdownName}>
+                                                        {u.isOnline && <span style={styles.onlineDot} />}
+                                                        {u.username}
+                                                    </span>
+                                                    <span style={styles.dropdownRank}>{u.rank}</span>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -323,7 +410,14 @@ const styles = {
 
     opponentBlock: { marginTop: '16px' },
     opponentLabel: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', marginBottom: '8px', letterSpacing: '1px' },
+    searchWrap: { position: 'relative' },
     challengeInput: { width: '100%', background: '#1e1f1a', border: '3px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '13px', padding: '12px 14px', outline: 'none', boxSizing: 'border-box' },
+    dropdown: { position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1e1f1a', border: '3px solid #75715e', boxShadow: '4px 4px 0 #3e3d32', zIndex: 20, maxHeight: '220px', overflowY: 'auto' },
+    dropdownRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #3e3d32' },
+    dropdownName: { fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700, color: '#f8f8f2', display: 'flex', alignItems: 'center' },
+    dropdownRank: { fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px' },
+    onlineDot: { width: '7px', height: '7px', borderRadius: '50%', background: '#a6e22e', marginRight: '8px', display: 'inline-block' },
+    dropdownEmpty: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', padding: '12px 14px', fontStyle: 'italic' },
 
     catsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '3px solid #75715e' },
     catCard: { padding: '16px', background: '#2d2c28', cursor: 'pointer', transition: 'background 0.15s' },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import api from '../api/axios';
@@ -42,6 +42,7 @@ export default function Quiz() {
         return localStorage.getItem('ca_focus_mode') === 'true';
     });
     const [confirmForfeit, setConfirmForfeit] = useState(false);
+    const quizStartRef = useRef(null);
 
     // Fetch questions
     useEffect(() => {
@@ -52,6 +53,7 @@ export default function Quiz() {
                 const res = await api.get(`/questions?category=${category}&difficulty=${difficulty}${exclude ? `&exclude=${exclude}` : ''}`);
                 setQuestions(res.data);
                 setSeenIds(prev => [...prev, ...res.data.map(q => q._id)]);
+                quizStartRef.current = Date.now();
             } catch {
                 setError('Failed to load questions');
             } finally {
@@ -67,11 +69,12 @@ export default function Quiz() {
         return '#f92672';
     };
 
-    
-
     const handleNext = useCallback(async () => {
         const isDailyChallenge = location.state?.isDailyChallenge || false;
         if (current + 1 >= questions.length) {
+            const timeTaken = quizStartRef.current
+                ? Math.round((Date.now() - quizStartRef.current) / 1000)
+                : null;
             try {
                 const res = await api.post('/scores', {
                     answers,
@@ -90,11 +93,12 @@ export default function Quiz() {
                         category,
                         difficulty,
                         review,
+                        timeTaken,
                     },
                 });
             } catch {
                 navigate('/results', {
-                    state: { score, total: questions.length, category, difficulty, review },
+                    state: { score, total: questions.length, category, difficulty, review, timeTaken },
                 });
             }
             return;
@@ -334,12 +338,12 @@ export default function Quiz() {
 
             </div>
 
-            {/* Forfeit confirmation dialog */}
+            {/* Quit confirmation dialog */}
             {confirmForfeit && (
                 <div style={styles.overlay}>
                     <div style={styles.dialog}>
-                        <div style={styles.dialogTag}>{'// forfeit_quiz'}</div>
-                        <div style={styles.dialogText}>Are you sure? Your progress won't be saved and no XP will be earned.</div>
+                        <div style={styles.dialogTag}>{'// quit_quiz'}</div>
+                        <div style={styles.dialogText}>Are you sure you want to quit? Your progress won't be saved and no XP will be earned.</div>
                         <div style={styles.dialogBtns}>
                             <button style={styles.dialogCancel} onClick={() => setConfirmForfeit(false)}>
                                 ← KEEP PLAYING
