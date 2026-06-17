@@ -8,6 +8,75 @@ const scoreService = require('./scoreService');
 const activeMatches = new Map();
 
 class MatchService {
+  constructor() {
+    // Run cleanup every minute
+    setInterval(() => this.cleanupStaleMatches(), 60 * 1000);
+  }
+
+  async cleanupStaleMatches() {
+    const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+    for (const [challengeId, matchState] of activeMatches.entries()) {
+      if (now - matchState.createdAt > STALE_THRESHOLD) {
+        if (process.env.NODE_ENV !== 'production') console.log(`Match ${challengeId} is stale. Cleaning up.`);
+        
+        try {
+          const { challenge, players } = matchState;
+          
+          if (!matchState.questions || matchState.questions.length === 0) {
+            // Match never started
+            challenge.status = 'declined';
+            await challenge.save();
+          } else {
+            // Match started but never finished. Consider as forfeit.
+            const playerIds = Object.keys(players);
+            if (playerIds.length === 2) {
+              const p1 = playerIds[0];
+              const p2 = playerIds[1];
+              
+              let winnerId = null;
+              
+              if (players[p1].finished && !players[p2].finished) {
+                winnerId = p1;
+              } else if (players[p2].finished && !players[p1].finished) {
+                winnerId = p2;
+              } else if (players[p1].answers.length > players[p2].answers.length) {
+                winnerId = p1;
+              } else if (players[p2].answers.length > players[p1].answers.length) {
+                winnerId = p2;
+              }
+
+              if (winnerId) {
+                // Calculate XP for the winner based on questions they answered
+                const winnerState = players[winnerId];
+                const TIME_LIMIT = 150;
+                const categoryId = challenge.category 
+                  ? (challenge.category._id || challenge.category) 
+                  : (matchState.questions[0]?.category || null);
+                  
+                await scoreService.submitScore(
+                  winnerId,
+                  winnerState.correctCount,
+                  challenge.difficulty,
+                  Math.max(0, TIME_LIMIT - winnerState.timeTaken),
+                  TIME_LIMIT,
+                  categoryId
+                );
+              }
+            }
+            
+            challenge.status = 'completed';
+            await challenge.save();
+          }
+        } catch (err) {
+          console.error('Error cleaning up stale match:', err);
+        }
+        
+        activeMatches.delete(challengeId);
+      }
+    }
+  }
+
   /**
    * Called when a player connects to the match lobby.
    */
@@ -42,6 +111,7 @@ class MatchService {
     // 4. Initialize match state if it doesn't exist
     if (!activeMatches.has(challengeId)) {
       activeMatches.set(challengeId, {
+        createdAt: Date.now(),
         challenge,
         questions: [],
         players: {

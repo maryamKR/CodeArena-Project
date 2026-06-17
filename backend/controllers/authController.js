@@ -5,7 +5,8 @@ const User = require('../models/User');
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  path: "/",
   maxAge: TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
 };
 
@@ -58,10 +59,11 @@ exports.getMe = async (req, res, next) => {
 
 exports.logoutUser = (req, res) => {
   res.clearCookie("token", {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-});
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+  });
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
