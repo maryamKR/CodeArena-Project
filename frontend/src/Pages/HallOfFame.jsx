@@ -12,10 +12,28 @@ const NAV_LINKS = [
 ];
 
 const PODIUM = [
-    { rank: 1, color: '#e6db74', label: '🥇 1ST', shadow: '0 0 30px rgba(230,219,116,0.4)' },
-    { rank: 2, color: '#c0c0c0', label: '🥈 2ND', shadow: '0 0 30px rgba(192,192,192,0.4)' },
-    { rank: 3, color: '#cd7f32', label: '🥉 3RD', shadow: '0 0 30px rgba(205,127,50,0.4)' },
+    { rank: 1, color: '#e6db74', label: '1ST', shadow: '0 0 30px rgba(230,219,116,0.4)' },
+    { rank: 2, color: '#c0c0c0', label: '2ND', shadow: '0 0 30px rgba(192,192,192,0.4)' },
+    { rank: 3, color: '#cd7f32', label: '3RD', shadow: '0 0 30px rgba(205,127,50,0.4)' },
 ];
+
+// Lightning bolt — matches the navbar/leaderboard XP icon
+const BoltIcon = ({ size = 12, color = '#e6db74' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
+         style={{ marginRight: '5px', verticalAlign: 'middle' }} aria-hidden="true">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </svg>
+);
+
+// Medal — tinted per podium rank (gold/silver/bronze via the label's color)
+const MedalIcon = ({ size = 16, color = '#272822' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"
+         style={{ marginRight: '6px', verticalAlign: 'middle' }} aria-hidden="true">
+        <circle cx="12" cy="14" r="6" />
+        <path d="M12 14l0 0" />
+        <path d="M8.5 8.5L5 2M15.5 8.5L19 2" />
+    </svg>
+);
 
 export default function HallOfFame() {
     const navigate = useNavigate();
@@ -56,7 +74,7 @@ export default function HallOfFame() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
+                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -113,9 +131,11 @@ export default function HallOfFame() {
                                             {player.username?.[0]?.toUpperCase()}
                                         </div>
                                         <div style={{ ...styles.podiumName, color: podiumData.color }}>{player.username}</div>
-                                        <div style={styles.podiumXP}>⚡ {player.totalXP} XP</div>
+                                        <div style={styles.podiumXP}><BoltIcon size={12} color="#e6db74" />{player.totalXP} XP</div>
                                         <div style={styles.podiumBadges}>{player.badges?.length || 0} badges</div>
-                                        <div style={{ ...styles.podiumRankLabel, background: podiumData.color, color: '#272822', height }}>{podiumData.label}</div>
+                                        <div style={{ ...styles.podiumRankLabel, background: podiumData.color, color: '#272822', height }}>
+                                            <MedalIcon size={16} color="#272822" />{podiumData.label}
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -133,7 +153,7 @@ export default function HallOfFame() {
                                                 {player.username}
                                             </span>
                                         </div>
-                                        <div style={{ color: '#e6db74', fontWeight: 700 }}>⚡ {player.totalXP} XP</div>
+                                        <div style={{ color: '#e6db74', fontWeight: 700, display: 'flex', alignItems: 'center' }}><BoltIcon size={12} color="#e6db74" />{player.totalXP} XP</div>
                                         <div style={{ width: '100px', textAlign: 'right', color: '#75715e' }}>{player.badges?.length || 0} badges</div>
                                     </div>
                                 ))}
@@ -170,7 +190,7 @@ const styles = {
     podiumCard: { background: '#1e1f1a', border: '3px solid #3e3d32', padding: '20px 16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', overflow: 'hidden' },
     podiumAvatar: { width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: 700 },
     podiumName: { fontSize: '14px', fontWeight: 700, textAlign: 'center' },
-    podiumXP: { fontSize: '12px', color: '#e6db74' },
+    podiumXP: { fontSize: '12px', color: '#e6db74', display: 'flex', alignItems: 'center' },
     podiumBadges: { fontSize: '11px', color: '#75715e' },
     podiumRankLabel: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', marginTop: '12px', letterSpacing: '2px' },
 
