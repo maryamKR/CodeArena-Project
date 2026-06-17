@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import api from '../API/axios';
@@ -10,6 +10,17 @@ const NAV_LINKS = [
     { label: 'Leaderboard', path: '/leaderboard' },
     { label: 'Profile', path: '/profile' },
 ];
+
+const BADGE_COLORS = {
+  'First Blood': '#f92672',
+  'Perfect Score': '#e6db74',
+  'Speed Demon': '#66d9e8',
+  '10 Wins': '#a6e22e',
+  'Centurion': '#e6db74',
+  'XP Master': '#f92672',
+  'Streak 3': '#66d9e8',
+  'Streak 7': '#a6e22e',
+};
 
 export default function Dashboard() {
     const { user, logout } = useAuth();
@@ -26,6 +37,11 @@ export default function Dashboard() {
     const [categories, setCategories] = useState([]);
     const [chCategory, setChCategory] = useState('');   // '' = any
     const [chDifficulty, setChDifficulty] = useState('Easy');
+    const [results, setResults] = useState([]);
+    const [searching, setSearching] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const debounceRef = useRef(null);
+    const searchWrapRef = useRef(null);
 
     // Pending invites state
     const [invites, setInvites] = useState([]);
@@ -52,9 +68,53 @@ export default function Dashboard() {
             .finally(() => setInvitesLoading(false));
     }, [user]);
 
+    // Close the username dropdown when clicking outside it
+    useEffect(() => {
+        if (!showDropdown) return;
+        const onClickAway = (e) => {
+            if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', onClickAway);
+        return () => document.removeEventListener('mousedown', onClickAway);
+    }, [showDropdown]);
+
     const handleLogout = async () => {
         await logout();
         navigate('/');
+    };
+
+    const handleOpponentChange = (value) => {
+        setOpponent(value);
+        setChallengeMsg(null);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        const q = value.trim();
+        if (q.length < 3) {
+            setResults([]);
+            setShowDropdown(false);
+            return;
+        }
+        debounceRef.current = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const res = await api.get(`/users/search?q=${encodeURIComponent(q)}`);
+                const list = (res.data.data || []).filter(u => u.username !== user?.username);
+                setResults(list);
+                setShowDropdown(true);
+            } catch {
+                setResults([]);
+                setShowDropdown(false);
+            } finally {
+                setSearching(false);
+            }
+        }, 300);
+    };
+
+    const pickOpponent = (username) => {
+        setOpponent(username);
+        setResults([]);
+        setShowDropdown(false);
     };
 
     const handleSendChallenge = async () => {
@@ -65,12 +125,14 @@ export default function Dashboard() {
         }
         setSending(true);
         setChallengeMsg(null);
+        setShowDropdown(false);
         try {
             const body = { receiverUsername: name, difficulty: chDifficulty };
             if (chCategory) body.category = chCategory;   // only send if chosen
             await api.post('/challenges', body);
             setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
             setOpponent('');
+            setResults([]);
         } catch (err) {
             const status = err?.response?.status;
             const text =
@@ -130,7 +192,7 @@ export default function Dashboard() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
+                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
@@ -307,15 +369,44 @@ export default function Dashboard() {
                                                 </select>
                                             </div>
                                             <div style={styles.challengeForm}>
-                                                <input
-                                                    style={styles.challengeInput}
-                                                    type="text"
-                                                    placeholder="opponent_username"
-                                                    value={opponent}
-                                                    onChange={e => setOpponent(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
-                                                    autoFocus
-                                                />
+                                                <div style={styles.searchWrap} ref={searchWrapRef}>
+                                                    <input
+                                                        style={styles.challengeInput}
+                                                        type="text"
+                                                        placeholder="opponent_username"
+                                                        value={opponent}
+                                                        onChange={e => handleOpponentChange(e.target.value)}
+                                                        onFocus={() => { if (results.length > 0) setShowDropdown(true); }}
+                                                        onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
+                                                        autoComplete="off"
+                                                        autoFocus
+                                                    />
+                                                    {showDropdown && (
+                                                        <div style={styles.dropdown}>
+                                                            {searching ? (
+                                                                <div style={styles.dropdownEmpty}>{'// searching...'}</div>
+                                                            ) : results.length === 0 ? (
+                                                                <div style={styles.dropdownEmpty}>{'// no_players_found'}</div>
+                                                            ) : (
+                                                                results.map((u) => (
+                                                                    <div
+                                                                        key={u._id}
+                                                                        style={styles.dropdownRow}
+                                                                        onClick={() => pickOpponent(u.username)}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                                    >
+                                                                        <span style={styles.dropdownName}>
+                                                                            {u.isOnline && <span style={styles.onlineDot} />}
+                                                                            {u.username}
+                                                                        </span>
+                                                                        <span style={styles.dropdownRank}>{u.rank}</span>
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 <button
                                                     style={{ ...styles.challengeSendBtn, opacity: sending ? 0.6 : 1 }}
                                                     onClick={handleSendChallenge}
@@ -349,10 +440,10 @@ export default function Dashboard() {
                             ) : (
                                 history.map((h, i) => (
                                     <div key={i} style={{ ...styles.activityRow, borderBottom: i < history.length - 1 ? '1px solid #3e3d32' : 'none' }}>
-                                        <div style={{ color: '#66d9e8', fontSize: '12px' }}>{h.category?.name || '?'}</div>
-                                        <div style={{ color: '#75715e', fontSize: '11px' }}>{h.difficulty}</div>
-                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px' }}>{h.correctAnswers}/10</div>
-                                        <div style={{ color: '#e6db74', fontSize: '11px' }}>+{h.earnedXP} XP</div>
+                                        <div style={{ color: '#66d9e8', fontSize: '12px', textAlign: 'left' }}>{h.category?.name || '?'}</div>
+                                        <div style={{ color: '#75715e', fontSize: '11px', textAlign: 'center' }}>{h.difficulty}</div>
+                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{h.correctAnswers}/10</div>
+                                        <div style={{ color: '#e6db74', fontSize: '11px', textAlign: 'right' }}>+{h.earnedXP} XP</div>
                                     </div>
                                 ))
                             )}
@@ -385,7 +476,7 @@ export default function Dashboard() {
                             {user?.badges?.length > 0 ? (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                     {user.badges.map((badge, i) => (
-                                        <div key={i} style={styles.badge}>{badge}</div>
+                                        <div key={i} style={{ ...styles.badge, borderColor: BADGE_COLORS[badge] || '#75715e', color: BADGE_COLORS[badge] || '#75715e' }}>{badge}</div>
                                     ))}
                                 </div>
                             ) : (
@@ -462,13 +553,19 @@ const styles = {
     challengeFormCol: { display: 'flex', flexDirection: 'column', gap: '6px' },
     challengeSelectRow: { display: 'flex', gap: '6px' },
     challengeSelect: { flex: 1, background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '10px', padding: '7px 8px', outline: 'none', cursor: 'pointer' },
-    challengeInput: { flex: 1, background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '11px', padding: '8px 10px', outline: 'none' },
+    searchWrap: { position: 'relative', flex: 1 },
+    dropdown: { position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1e1f1a', border: '2px solid #75715e', boxShadow: '4px 4px 0 #3e3d32', zIndex: 30, maxHeight: '180px', overflowY: 'auto' },
+    dropdownRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #3e3d32' },
+    dropdownName: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, color: '#f8f8f2', display: 'flex', alignItems: 'center' },
+    dropdownRank: { fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px' },
+    dropdownEmpty: { fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#75715e', padding: '10px 12px', fontStyle: 'italic' },
+    challengeInput: { width: '100%', boxSizing: 'border-box', background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '11px', padding: '8px 10px', outline: 'none' },
     challengeSendBtn: { background: '#f92672', color: '#f8f8f2', border: 'none', fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
     challengeMsg: { fontFamily: "'Space Mono', monospace", fontSize: '10px', fontWeight: 700, padding: '6px 8px', border: '2px solid', letterSpacing: '0.5px' },
 
     activityCard: { background: '#1e1f1a', border: '3px solid #75715e' },
     activityHeader: { padding: '10px 14px', borderBottom: '2px solid #3e3d32', fontSize: '10px', color: '#75715e', letterSpacing: '2px' },
-    activityRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' },
+    activityRow: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', alignItems: 'center', padding: '10px 14px', gap: '8px' },
     emptyTag: { padding: '16px 14px', fontSize: '11px', color: '#75715e', fontStyle: 'italic' },
 
     rightCol: { display: 'flex', flexDirection: 'column' },
