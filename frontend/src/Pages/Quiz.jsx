@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
-import { useLocation } from 'react-router-dom';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -14,19 +15,28 @@ const NAV_LINKS = [
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
+const themeColor = (hex, t) => {
+    if (hex === '#e6db74') return t.yellow;
+    if (hex === '#a6e22e') return t.green;
+    return hex;
+};
+
 export default function Quiz() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const location = useLocation();
+    const { theme, toggleTheme } = useTheme();
+    const t = getThemeColors(theme);
+
     const [mode, setMode] = useState(location.state?.mode || null);
-    const [oneVoneType, setOneVoneType] = useState('random'); // 'random' | 'friend'
+    const [oneVoneType, setOneVoneType] = useState('random');
     const [category, setCategory] = useState(location.state?.category || null);
     const [difficulty, setDifficulty] = useState('Easy');
     const [categories, setCategories] = useState([]);
 
     // Friend-challenge state
     const [opponent, setOpponent] = useState('');
-    const [challengeMsg, setChallengeMsg] = useState(null); // { type, text }
+    const [challengeMsg, setChallengeMsg] = useState(null);
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
@@ -93,10 +103,10 @@ export default function Quiz() {
     const isFriend = mode === '1v1' && oneVoneType === 'friend';
 
     return (
-        <div style={styles.page}>
+        <div style={{ ...styles.page, background: t.pageBg }}>
 
             {/* Navbar */}
-            <nav style={styles.nav}>
+            <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
                 <div style={styles.logo}>
                     <span style={styles.bracket}>[</span>
                     <span style={styles.logoName}>CODE</span>
@@ -111,8 +121,10 @@ export default function Quiz() {
                             onClick={() => navigate(link.path)}
                             style={{
                                 ...styles.navLink,
+                                borderColor: t.border,
+                                color: t.textMuted,
                                 ...(i === 2 ? styles.navLinkActive : {}),
-                                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                                 cursor: 'pointer',
                             }}
                         >
@@ -120,44 +132,58 @@ export default function Quiz() {
                         </a>
                     ))}
                 </div>
-                <div style={styles.xpBadge}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
-                    {user?.totalXP || 0} XP
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+                        {t.isLight ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+                            </svg>
+                        )}
+                    </button>
+                    <div style={styles.xpBadge}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        {user?.totalXP || 0} XP
+                    </div>
                 </div>
             </nav>
 
             <div style={styles.content}>
 
                 {/* Header */}
-                <div style={styles.tag}>{'// setup_match'}</div>
-                <h1 style={styles.title}>
+                <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// setup_match'}</div>
+                <h1 style={{ ...styles.title, color: t.text }}>
                     <span style={styles.kw}>const</span> match{' '}
                     <span style={styles.op}>=</span>{' '}
                     <span style={styles.fn}>configure</span>
-                    <span style={styles.paren}>()</span>
+                    <span style={{ color: t.text }}>()</span>
                 </h1>
 
                 {/* Step 1 — Mode */}
                 <div style={styles.section}>
-                    <div style={styles.stepTag}>{'// step_1: select_mode'}</div>
+                    <div style={{ ...styles.stepTag, background: t.tagBg, color: t.textMuted }}>{'// step_1: select_mode'}</div>
                     <div style={styles.modeGrid}>
                         <div
-                            style={{ ...styles.modeCard, ...(mode === 'solo' ? styles.modeCardActive : {}), borderColor: mode === 'solo' ? '#a6e22e' : '#75715e' }}
+                            style={{ ...styles.modeCard, background: t.cardBg, boxShadow: t.shadow, ...(mode === 'solo' ? styles.modeCardActive : {}), borderColor: mode === 'solo' ? '#a6e22e' : t.border }}
                             onClick={() => setMode('solo')}
                         >
                             <div style={styles.modeIcon}><svg width="32" height="32" viewBox="0 0 24 24" fill="#a6e22e"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" /></svg></div>
-                            <div style={{ ...styles.modeName, color: mode === 'solo' ? '#a6e22e' : '#f8f8f2' }}>SOLO</div>
-                            <div style={styles.modeDesc}>Practice at your own pace</div>
+                            <div style={{ ...styles.modeName, color: mode === 'solo' ? t.green : t.text }}>SOLO</div>
+                            <div style={{ ...styles.modeDesc, color: t.textMuted }}>Practice at your own pace</div>
                         </div>
                         <div
-                            style={{ ...styles.modeCard, ...(mode === '1v1' ? styles.modeCardActive : {}), borderColor: mode === '1v1' ? '#f92672' : '#75715e' }}
+                            style={{ ...styles.modeCard, background: t.cardBg, boxShadow: t.shadow, ...(mode === '1v1' ? styles.modeCardActive : {}), borderColor: mode === '1v1' ? '#f92672' : t.border }}
                             onClick={() => setMode('1v1')}
                         >
                             <div style={{ ...styles.modeIcon, color: '#f92672' }}>⚔</div>
-                            <div style={{ ...styles.modeName, color: mode === '1v1' ? '#f92672' : '#f8f8f2' }}>1v1 CHALLENGE</div>
-                            <div style={styles.modeDesc}>Battle another player</div>
+                            <div style={{ ...styles.modeName, color: mode === '1v1' ? '#f92672' : t.text }}>1v1 CHALLENGE</div>
+                            <div style={{ ...styles.modeDesc, color: t.textMuted }}>Battle another player</div>
                         </div>
                     </div>
 
@@ -165,13 +191,13 @@ export default function Quiz() {
                     {mode === '1v1' && (
                         <div style={styles.subChoiceRow}>
                             <button
-                                style={{ ...styles.subChoiceBtn, ...(oneVoneType === 'random' ? styles.subChoiceActive : {}) }}
+                                style={{ ...styles.subChoiceBtn, borderColor: t.border, color: t.textMuted, ...(oneVoneType === 'random' ? styles.subChoiceActive : {}) }}
                                 onClick={() => { setOneVoneType('random'); setChallengeMsg(null); }}
                             >
                                 ⚔ Random Opponent
                             </button>
                             <button
-                                style={{ ...styles.subChoiceBtn, ...(oneVoneType === 'friend' ? styles.subChoiceActive : {}) }}
+                                style={{ ...styles.subChoiceBtn, borderColor: t.border, color: t.textMuted, ...(oneVoneType === 'friend' ? styles.subChoiceActive : {}) }}
                                 onClick={() => { setOneVoneType('friend'); setChallengeMsg(null); }}
                             >
                                 Challenge a Friend
@@ -179,12 +205,12 @@ export default function Quiz() {
                         </div>
                     )}
 
-                    {/* Friend: username input shown up top, right after selecting Friend */}
+                    {/* Friend: username input */}
                     {isFriend && (
                         <div style={styles.opponentBlock}>
-                            <div style={styles.opponentLabel}>{'// opponent_username'}</div>
+                            <div style={{ ...styles.opponentLabel, color: t.textMuted }}>{'// opponent_username'}</div>
                             <input
-                                style={styles.challengeInput}
+                                style={{ ...styles.challengeInput, background: t.cardBg, borderColor: t.border, color: t.text }}
                                 type="text"
                                 placeholder="opponent_username"
                                 value={opponent}
@@ -198,25 +224,26 @@ export default function Quiz() {
                 {/* Step 2 — Category */}
                 {mode && (
                     <div style={styles.section}>
-                        <div style={styles.stepTag}>{'// step_2: select_category'}</div>
-                        <div style={styles.catsGrid}>
+                        <div style={{ ...styles.stepTag, background: t.tagBg, color: t.textMuted }}>{'// step_2: select_category'}</div>
+                        <div style={{ ...styles.catsGrid, borderColor: t.border }}>
                             {categories.map((cat, i) => (
                                 <div
                                     key={cat.slug}
                                     style={{
                                         ...styles.catCard,
-                                        borderTop: `4px solid ${cat.color}`,
-                                        borderRight: (i + 1) % 4 !== 0 ? '3px solid #75715e' : 'none',
-                                        borderBottom: '3px solid #75715e',
-                                        ...(category === cat.slug ? { background: '#3e3d32' } : {}),
+                                        background: t.cardAltBg,
+                                        borderTop: `4px solid ${themeColor(cat.color, t)}`,
+                                        borderRight: (i + 1) % 4 !== 0 ? `3px solid ${t.border}` : 'none',
+                                        borderBottom: `3px solid ${t.border}`,
+                                        ...(category === cat.slug ? { background: t.isLight ? '#c5c2b5' : '#3e3d32' } : {}),
                                     }}
                                     onClick={() => setCategory(cat.slug)}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
-                                    onMouseLeave={e => e.currentTarget.style.background = category === cat.slug ? '#3e3d32' : '#2d2c28'}
+                                    onMouseEnter={e => e.currentTarget.style.background = t.isLight ? '#c5c2b5' : '#3e3d32'}
+                                    onMouseLeave={e => e.currentTarget.style.background = category === cat.slug ? (t.isLight ? '#c5c2b5' : '#3e3d32') : t.cardAltBg}
                                 >
-                                    <div style={{ ...styles.catIcon, color: cat.color }}>{cat.short}</div>
-                                    <div style={styles.catName}>{cat.name}</div>
-                                    {category === cat.slug && <div style={{ fontSize: '10px', color: cat.color, marginTop: '4px' }}>✓ selected</div>}
+                                    <div style={{ ...styles.catIcon, color: themeColor(cat.color, t) }}>{cat.short}</div>
+                                    <div style={{ ...styles.catName, color: t.text }}>{cat.name}</div>
+                                    {category === cat.slug && <div style={{ fontSize: '10px', color: themeColor(cat.color, t), marginTop: '4px' }}>✓ selected</div>}
                                 </div>
                             ))}
                         </div>
@@ -226,14 +253,16 @@ export default function Quiz() {
                 {/* Step 3 — Difficulty */}
                 {mode && category && (
                     <div style={styles.section}>
-                        <div style={styles.stepTag}>{'// step_3: select_difficulty'}</div>
+                        <div style={{ ...styles.stepTag, background: t.tagBg, color: t.textMuted }}>{'// step_3: select_difficulty'}</div>
                         <div style={styles.diffRow}>
                             {DIFFICULTIES.map((d, i) => (
                                 <button
                                     key={d}
                                     style={{
                                         ...styles.diffBtn,
-                                        borderRight: i === DIFFICULTIES.length - 1 ? '2px solid #75715e' : 'none',
+                                        borderColor: t.border,
+                                        color: t.textMuted,
+                                        borderRight: i === DIFFICULTIES.length - 1 ? `2px solid ${t.border}` : 'none',
                                         ...(difficulty === d ? styles.diffBtnActive : {}),
                                     }}
                                     onClick={() => setDifficulty(d)}
@@ -245,33 +274,33 @@ export default function Quiz() {
                     </div>
                 )}
 
-                {/* Final action — Start (solo / random) OR Send challenge (friend) */}
+                {/* Final action */}
                 {mode && category && (
                     isFriend ? (
                         <div style={styles.section}>
                             {challengeMsg && (
                                 <div style={{
                                     ...styles.challengeMsg,
-                                    color: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
-                                    borderColor: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
+                                    color: challengeMsg.type === 'success' ? t.green : '#f92672',
+                                    borderColor: challengeMsg.type === 'success' ? t.green : '#f92672',
                                 }}>
                                     {challengeMsg.text}
                                 </div>
                             )}
                             <button
-                                style={{ ...styles.startBtn, background: '#f92672', borderColor: '#f92672', color: '#f8f8f2', opacity: sending ? 0.6 : 1 }}
+                                style={{ ...styles.startBtn, background: '#f92672', borderColor: '#f92672', color: '#f8f8f2', boxShadow: t.shadow, opacity: sending ? 0.6 : 1 }}
                                 onClick={handleSendChallenge}
                                 disabled={sending}
                             >
                                 {sending ? 'SENDING...' : '⚔ SEND CHALLENGE'}
                             </button>
-                            <div style={styles.challengeHint}>
+                            <div style={{ ...styles.challengeHint, color: t.textMuted }}>
                                 {'// they\'ll get a notification to accept or decline'}
                             </div>
                         </div>
                     ) : (
                         <button
-                            style={{ ...styles.startBtn, opacity: !category ? 0.5 : 1 }}
+                            style={{ ...styles.startBtn, boxShadow: t.shadow, opacity: !category ? 0.5 : 1 }}
                             onClick={handleStart}
                             onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
                             onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
@@ -296,6 +325,7 @@ const styles = {
     navLinks: { display: 'flex' },
     navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+    themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
     xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },
 
     content: { padding: '28px 24px', maxWidth: '900px', margin: '0 auto' },

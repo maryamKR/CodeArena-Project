@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -18,6 +20,8 @@ export default function Quiz() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, refreshUser } = useAuth();
+    const { theme, toggleTheme } = useTheme();
+    const t = getThemeColors(theme);
 
     const category = location.state?.category || 'js';
     const difficulty = location.state?.difficulty || 'Easy';
@@ -43,7 +47,6 @@ export default function Quiz() {
     });
     const [confirmForfeit, setConfirmForfeit] = useState(false);
 
-    // Fetch questions
     useEffect(() => {
         const fetchQuestions = async () => {
             setLoading(true);
@@ -135,22 +138,18 @@ export default function Quiz() {
         }
     }, [answered, questions, current]);
 
-    // Forfeit — discard attempt, no score saved
     const handleForfeit = () => {
         navigate('/dashboard');
     };
 
-    // Auto-advance after the answer is checked
     useEffect(() => {
         if (!result) return;
         const t = setTimeout(() => handleNext(), AUTO_ADVANCE_MS);
         return () => clearTimeout(t);
     }, [result, handleNext]);
 
-    // Persist focus preference + ESC exits focus mode
     useEffect(() => {
         localStorage.setItem('ca_focus_mode', focusMode);
-
         if (!focusMode) return;
         const onKey = (e) => {
             if (e.key === 'Escape') setFocusMode(false);
@@ -159,7 +158,6 @@ export default function Quiz() {
         return () => window.removeEventListener('keydown', onKey);
     }, [focusMode]);
 
-    // Timer — paused while the forfeit dialog is open
     useEffect(() => {
         if (answered || loading || confirmForfeit) return;
         if (timer === 0) {
@@ -176,7 +174,6 @@ export default function Quiz() {
         return () => clearInterval(interval);
     }, [timer, answered, loading, confirmForfeit, handleNext]);
 
-    // Keyboard shortcuts
     useEffect(() => {
         if (answered || confirmForfeit) return;
         const handleKey = (e) => {
@@ -188,13 +185,13 @@ export default function Quiz() {
     }, [answered, confirmForfeit, handleAnswer]);
 
     if (loading) return (
-        <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={styles.loadingTag}>{'// loading_questions...'}</div>
+        <div style={{ ...styles.page, background: t.pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ ...styles.loadingTag, color: t.textMuted }}>{'// loading_questions...'}</div>
         </div>
     );
 
     if (error) return (
-        <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ ...styles.page, background: t.pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={styles.errorBox}>{error}</div>
         </div>
     );
@@ -202,11 +199,11 @@ export default function Quiz() {
     const question = questions[current];
 
     return (
-        <div style={{ ...styles.page, animation: exploding ? 'shake 0.5s' : 'none' }}>
+        <div style={{ ...styles.page, background: t.pageBg, animation: exploding ? 'shake 0.5s' : 'none' }}>
 
             {/* Navbar — hidden in focus mode */}
             {!focusMode && (
-                <nav style={styles.nav}>
+                <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
                     <div style={styles.logo}>
                         <span style={styles.bracket}>[</span>
                         <span style={styles.logoName}>CODE</span>
@@ -216,13 +213,14 @@ export default function Quiz() {
                     <div style={styles.navLinks}>
                         {NAV_LINKS.map((link, i) => (
                             <a
-                            
                                 key={link.label}
                                 onClick={() => navigate(link.path)}
                                 style={{
                                     ...styles.navLink,
+                                    borderColor: t.border,
+                                    color: t.textMuted,
                                     ...(i === 2 ? styles.navLinkActive : {}),
-                                    ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                    ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                                     cursor: 'pointer',
                                 }}
                             >
@@ -230,17 +228,31 @@ export default function Quiz() {
                             </a>
                         ))}
                     </div>
-                    <div style={styles.xpBadge}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                        </svg>
-                        {user?.totalXP || 0} XP
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+                            {t.isLight ? (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                </svg>
+                            ) : (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="4" />
+                                    <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+                                </svg>
+                            )}
+                        </button>
+                        <div style={styles.xpBadge}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                            </svg>
+                            {user?.totalXP || 0} XP
+                        </div>
                     </div>
                 </nav>
             )}
 
             {/* Progress bar */}
-            <div style={styles.progressBar}>
+            <div style={{ ...styles.progressBar, background: t.borderLight }}>
                 <div style={{ ...styles.progressFill, width: `${((current) / questions.length) * 100}%`, background: getTimerColor() }} />
             </div>
 
@@ -248,12 +260,12 @@ export default function Quiz() {
 
                 {/* Header row */}
                 <div style={styles.headerRow}>
-                    <div style={styles.questionTag}>
+                    <div style={{ ...styles.questionTag, background: t.tagBg, color: t.textMuted }}>
                         {'// '}<span style={{ color: '#66d9e8' }}>{category}</span>
-                        {'.'}<span style={{ color: '#a6e22e' }}>{difficulty}</span>
+                        {'.'}<span style={{ color: t.green }}>{difficulty}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={styles.scoreTag}>score: <span style={{ color: '#a6e22e' }}>{score}</span>/{questions.length}</div>
+                        <div style={{ ...styles.scoreTag, color: t.textMuted }}>score: <span style={{ color: t.green }}>{score}</span>/{questions.length}</div>
                         <button style={styles.focusBtn} onClick={() => setFocusMode(f => !f)} title="Toggle focus mode">
                             {focusMode ? '◱ exit focus' : '⛶ focus'}
                         </button>
@@ -273,13 +285,13 @@ export default function Quiz() {
                 </div>
 
                 {/* Question */}
-                <div style={{ ...styles.questionCard, ...(focusMode ? styles.questionCardFocus : {}) }}>
-                    <div style={styles.questionNum}>// question_{current + 1}</div>
-                    <div style={{ ...styles.questionText, ...(focusMode ? styles.questionTextFocus : {}) }}>{question?.text}</div>
+                <div style={{ ...styles.questionCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow, ...(focusMode ? styles.questionCardFocus : {}) }}>
+                    <div style={{ ...styles.questionNum, color: t.textMuted }}>// question_{current + 1}</div>
+                    <div style={{ ...styles.questionText, color: t.text, ...(focusMode ? styles.questionTextFocus : {}) }}>{question?.text}</div>
                 </div>
 
                 {/* XP animation */}
-                {xpGain && <div style={styles.xpPop}>+{xpGain} XP</div>}
+                {xpGain && <div style={{ ...styles.xpPop, color: t.green }}>+{xpGain} XP</div>}
 
                 {/* True / False buttons */}
                 <div style={styles.answerRow}>
@@ -287,6 +299,8 @@ export default function Quiz() {
                         style={{
                             ...styles.answerBtn,
                             ...styles.trueBtn,
+                            background: t.cardBg,
+                            boxShadow: t.shadow,
                             ...(result && question?.correct_answer === true ? styles.correctBtn : {}),
                             ...(result && selected === true && question?.correct_answer !== true ? styles.wrongBtn : {}),
                             opacity: answered ? 0.85 : 1,
@@ -301,6 +315,8 @@ export default function Quiz() {
                         style={{
                             ...styles.answerBtn,
                             ...styles.falseBtn,
+                            background: t.cardBg,
+                            boxShadow: t.shadow,
                             ...(result && question?.correct_answer === false ? styles.correctBtn : {}),
                             ...(result && selected === false && question?.correct_answer !== false ? styles.wrongBtn : {}),
                             opacity: answered ? 0.85 : 1,
@@ -313,17 +329,17 @@ export default function Quiz() {
                     </button>
                 </div>
 
-                {/* Result line (auto-advances, no Next button) */}
+                {/* Result line */}
                 {answered && (
                     <div style={styles.resultRow}>
                         {result ? (
-                            <div style={{ ...styles.resultTag, color: result === 'correct' ? '#a6e22e' : '#f92672' }}>
+                            <div style={{ ...styles.resultTag, color: result === 'correct' ? t.green : '#f92672' }}>
                                 {result === 'correct' ? '// correct! +10 XP' : '// wrong!'}
                             </div>
                         ) : (
-                            <div style={{ ...styles.resultTag, color: '#75715e' }}>{'// checking...'}</div>
+                            <div style={{ ...styles.resultTag, color: t.textMuted }}>{'// checking...'}</div>
                         )}
-                        <div style={styles.nextHint}>
+                        <div style={{ ...styles.nextHint, color: t.textMuted }}>
                             {current + 1 >= questions.length ? '// loading results...' : '// next question...'}
                         </div>
                     </div>
@@ -334,9 +350,9 @@ export default function Quiz() {
             {/* Forfeit confirmation dialog */}
             {confirmForfeit && (
                 <div style={styles.overlay}>
-                    <div style={styles.dialog}>
-                        <div style={styles.dialogTag}>{'// forfeit_quiz'}</div>
-                        <div style={styles.dialogText}>Are you sure? Your progress won't be saved and no XP will be earned.</div>
+                    <div style={{ ...styles.dialog, background: t.cardBg, boxShadow: t.shadow }}>
+                        <div style={{ ...styles.dialogTag, background: t.tagBg, color: t.textMuted }}>{'// forfeit_quiz'}</div>
+                        <div style={{ ...styles.dialogText, color: t.text }}>Are you sure? Your progress won't be saved and no XP will be earned.</div>
                         <div style={styles.dialogBtns}>
                             <button style={styles.dialogCancel} onClick={() => setConfirmForfeit(false)}>
                                 ← KEEP PLAYING
@@ -376,6 +392,7 @@ const styles = {
     navLinks: { display: 'flex' },
     navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+    themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
     xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },
 
     progressBar: { height: '6px', background: '#3e3d32', width: '100%' },

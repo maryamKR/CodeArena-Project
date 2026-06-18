@@ -1,10 +1,20 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
+
+const themeColor = (hex, t) => {
+  if (hex === '#e6db74') return t.yellow;
+  if (hex === '#a6e22e') return t.green;
+  return hex;
+};
 
 export default function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const t = getThemeColors(theme);
 
   const { score = 0, total = 0, category = 'js', difficulty = 'easy', review = [] } = location.state || {};
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
@@ -22,59 +32,73 @@ export default function Results() {
   const fmt = (b) => (b ? 'TRUE' : 'FALSE');
 
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, background: t.pageBg }}>
 
       {/* Navbar */}
-      <nav style={styles.nav}>
+      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
           <span style={styles.logoName}>CODE</span>
           <span style={styles.bracket}>]</span>
           {' '}ARENA
         </div>
-        <div style={styles.xpBadge}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-          {user?.totalXP || 0} XP
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+            {t.isLight ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+              </svg>
+            )}
+          </button>
+          <div style={styles.xpBadge}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            {user?.totalXP || 0} XP
+          </div>
         </div>
       </nav>
 
       <div style={styles.content}>
 
         {/* Header */}
-        <div style={styles.tag}>{'// quiz_complete'}</div>
-        <h1 style={styles.title}>
+        <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// quiz_complete'}</div>
+        <h1 style={{ ...styles.title, color: t.text }}>
           <span style={styles.kw}>return</span>{' '}
           <span style={styles.fn}>results</span>
-          <span style={styles.paren}>()</span>
+          <span style={{ color: t.text }}>()</span>
         </h1>
 
         {/* Score card */}
-        <div style={styles.scoreCard}>
+        <div style={{ ...styles.scoreCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
           <div style={styles.scoreTop}>
-            <div style={styles.scoreCircle}>
-              <div style={{ ...styles.scoreNum, color: msg.color }}>{percentage}%</div>
-              <div style={styles.scoreLabel}>SCORE</div>
+            <div style={{ ...styles.scoreCircle, borderColor: t.border }}>
+              <div style={{ ...styles.scoreNum, color: themeColor(msg.color, t) }}>{percentage}%</div>
+              <div style={{ ...styles.scoreLabel, color: t.textMuted }}>SCORE</div>
             </div>
             <div style={styles.scoreDetails}>
-              <div style={styles.msgTag}>{msg.text}</div>
+              <div style={{ ...styles.msgTag, color: t.textMuted }}>{msg.text}</div>
               <div style={styles.scoreBreakdown}>
                 <div style={styles.breakdownItem}>
-                  <span style={styles.breakdownVal}>{score}/{total}</span>
-                  <span style={styles.breakdownLabel}>correct answers</span>
+                  <span style={{ ...styles.breakdownVal, color: t.green }}>{score}/{total}</span>
+                  <span style={{ ...styles.breakdownLabel, color: t.textMuted }}>correct answers</span>
                 </div>
                 <div style={styles.breakdownItem}>
-                  <span style={{ ...styles.breakdownVal, color: '#e6db74' }}>+{xpEarned}</span>
-                  <span style={styles.breakdownLabel}>XP earned</span>
+                  <span style={{ ...styles.breakdownVal, color: t.yellow }}>+{xpEarned}</span>
+                  <span style={{ ...styles.breakdownLabel, color: t.textMuted }}>XP earned</span>
                 </div>
                 <div style={styles.breakdownItem}>
                   <span style={{ ...styles.breakdownVal, color: '#66d9e8' }}>{category}</span>
-                  <span style={styles.breakdownLabel}>category</span>
+                  <span style={{ ...styles.breakdownLabel, color: t.textMuted }}>category</span>
                 </div>
                 <div style={styles.breakdownItem}>
                   <span style={{ ...styles.breakdownVal, color: '#f92672' }}>{difficulty}</span>
-                  <span style={styles.breakdownLabel}>difficulty</span>
+                  <span style={{ ...styles.breakdownLabel, color: t.textMuted }}>difficulty</span>
                 </div>
               </div>
             </div>
@@ -83,34 +107,34 @@ export default function Results() {
 
         {/* Answer review */}
         {review.length > 0 && (
-          <div style={styles.reviewCard}>
-            <div style={styles.reviewHeader}>{'// answer_review'}</div>
+          <div style={{ ...styles.reviewCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+            <div style={{ ...styles.reviewHeader, borderBottomColor: t.border, color: t.textMuted }}>{'// answer_review'}</div>
             {review.map((q, i) => (
               <div
                 key={i}
                 style={{
                   ...styles.reviewRow,
                   borderLeft: `4px solid ${q.isCorrect ? '#a6e22e' : '#f92672'}`,
-                  borderBottom: i < review.length - 1 ? '2px solid #3e3d32' : 'none',
+                  borderBottom: i < review.length - 1 ? `2px solid ${t.borderLight}` : 'none',
                 }}
               >
-                <div style={styles.reviewQNum}>
-                  <span style={{ color: q.isCorrect ? '#a6e22e' : '#f92672', fontWeight: 700 }}>
+                <div style={{ ...styles.reviewQNum, color: t.textMuted }}>
+                  <span style={{ color: q.isCorrect ? t.green : '#f92672', fontWeight: 700 }}>
                     {q.isCorrect ? '✓' : '✗'}
                   </span>{' '}
                   q{i + 1}
                 </div>
-                <div style={styles.reviewText}>{q.text}</div>
+                <div style={{ ...styles.reviewText, color: t.text }}>{q.text}</div>
                 <div style={styles.reviewAnswers}>
                   <span style={{
                     ...styles.reviewPill,
-                    color: q.isCorrect ? '#a6e22e' : '#f92672',
-                    borderColor: q.isCorrect ? '#a6e22e' : '#f92672',
+                    color: q.isCorrect ? t.green : '#f92672',
+                    borderColor: q.isCorrect ? t.green : '#f92672',
                   }}>
                     you: {fmt(q.selected)}
                   </span>
                   {!q.isCorrect && (
-                    <span style={{ ...styles.reviewPill, color: '#a6e22e', borderColor: '#a6e22e' }}>
+                    <span style={{ ...styles.reviewPill, color: t.green, borderColor: t.green }}>
                       correct: {fmt(q.correct)}
                     </span>
                   )}
@@ -123,7 +147,7 @@ export default function Results() {
         {/* Action buttons */}
         <div style={styles.actionsRow}>
           <button
-            style={styles.playAgainBtn}
+            style={{ ...styles.playAgainBtn, boxShadow: t.shadow }}
             onClick={() => navigate('/quiz', { state: { category, difficulty } })}
             onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
             onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
@@ -131,17 +155,17 @@ export default function Results() {
             ▶ PLAY AGAIN
           </button>
           <button
-            style={styles.dashboardBtn}
+            style={{ ...styles.dashboardBtn, borderColor: t.border, color: t.textMuted }}
             onClick={() => navigate('/dashboard')}
-            onMouseEnter={e => { e.currentTarget.style.background = '#3e3d32'; e.currentTarget.style.color = '#f8f8f2'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#75715e'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.borderLight; e.currentTarget.style.color = t.text; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; }}
           >
             ← BACK TO DASHBOARD
           </button>
           <button
-            style={styles.leaderboardBtn}
+            style={{ ...styles.leaderboardBtn, color: t.yellow, borderColor: t.yellow }}
             onClick={() => navigate('/leaderboard')}
-            onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
+            onMouseEnter={e => e.currentTarget.style.background = t.borderLight}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
              LEADERBOARD
@@ -160,6 +184,7 @@ const styles = {
   logo: { fontFamily: "'Space Mono', monospace", fontSize: '18px', fontWeight: 700, color: '#f8f8f2', letterSpacing: '-1px' },
   bracket: { color: '#f92672' },
   logoName: { background: '#a6e22e', color: '#272822', padding: '0 5px' },
+  themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
   xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },
 
   content: { padding: '28px 24px', maxWidth: '700px', margin: '0 auto' },

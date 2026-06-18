@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../API/axios';
 
 const NAV_LINKS = [
@@ -22,9 +24,18 @@ const BADGE_COLORS = {
   'Streak 7': '#a6e22e',
 };
 
+const themeColor = (hex, t) => {
+    if (hex === '#e6db74') return t.yellow;
+    if (hex === '#a6e22e') return t.green;
+    return hex;
+};
+
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const { theme, toggleTheme } = useTheme();
+    const t = getThemeColors(theme);
+
     const [history, setHistory] = useState([]);
     const [leaderboard, setLeaderboard] = useState([]);
     const [myRank, setMyRank] = useState(null);
@@ -32,10 +43,10 @@ export default function Dashboard() {
     // Challenge-a-friend state
     const [showChallenge, setShowChallenge] = useState(false);
     const [opponent, setOpponent] = useState('');
-    const [challengeMsg, setChallengeMsg] = useState(null); // { type: 'error'|'success', text }
+    const [challengeMsg, setChallengeMsg] = useState(null);
     const [sending, setSending] = useState(false);
     const [categories, setCategories] = useState([]);
-    const [chCategory, setChCategory] = useState('');   // '' = any
+    const [chCategory, setChCategory] = useState('');
     const [chDifficulty, setChDifficulty] = useState('Easy');
     const [results, setResults] = useState([]);
     const [searching, setSearching] = useState(false);
@@ -46,7 +57,7 @@ export default function Dashboard() {
     // Pending invites state
     const [invites, setInvites] = useState([]);
     const [invitesLoading, setInvitesLoading] = useState(true);
-    const [actioningId, setActioningId] = useState(null); // id being accepted/declined
+    const [actioningId, setActioningId] = useState(null);
 
     useEffect(() => {
         if (!user?._id) return;
@@ -68,7 +79,6 @@ export default function Dashboard() {
             .finally(() => setInvitesLoading(false));
     }, [user]);
 
-    // Close the username dropdown when clicking outside it
     useEffect(() => {
         if (!showDropdown) return;
         const onClickAway = (e) => {
@@ -128,7 +138,7 @@ export default function Dashboard() {
         setShowDropdown(false);
         try {
             const body = { receiverUsername: name, difficulty: chDifficulty };
-            if (chCategory) body.category = chCategory;   // only send if chosen
+            if (chCategory) body.category = chCategory;
             await api.post('/challenges', body);
             setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
             setOpponent('');
@@ -160,7 +170,6 @@ export default function Dashboard() {
                 },
             });
         } catch {
-            // if accept fails (e.g. expired), drop it from the list
             setInvites(prev => prev.filter(i => i.id !== inv.id));
             setActioningId(null);
         }
@@ -171,7 +180,6 @@ export default function Dashboard() {
         try {
             await api.put(`/challenges/${inv.id}/decline`);
         } catch {
-            // ignore — we remove it either way
         } finally {
             setInvites(prev => prev.filter(i => i.id !== inv.id));
             setActioningId(null);
@@ -179,10 +187,10 @@ export default function Dashboard() {
     };
 
     return (
-        <div style={styles.page}>
+        <div style={{ ...styles.page, background: t.pageBg }}>
 
             {/* Navbar */}
-            <nav style={styles.nav}>
+            <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
                 <div style={styles.logo}>
                     <span style={styles.bracket}>[</span>
                     <span style={styles.logoName}>CODE</span>
@@ -192,13 +200,14 @@ export default function Dashboard() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
                                 ...styles.navLink,
+                                borderColor: t.border,
+                                color: t.textMuted,
                                 ...(i === 1 ? styles.navLinkActive : {}),
-                                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                                 cursor: 'pointer',
                             }}
                         >
@@ -207,7 +216,19 @@ export default function Dashboard() {
                     ))}
                 </div>
                 <div style={styles.navRight}>
-                    <div style={styles.userBadge}>{user?.username || 'player'}</div>
+                    <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+                        {t.isLight ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+                            </svg>
+                        )}
+                    </button>
+                    <div style={{ ...styles.userBadge, color: t.green, borderColor: t.green }}>{user?.username || 'player'}</div>
                     <div style={styles.xpBadge}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -221,23 +242,23 @@ export default function Dashboard() {
             <div style={styles.content}>
 
                 {/* Welcome */}
-                <div style={styles.welcomeRow}>
+                <div style={{ ...styles.welcomeRow, borderBottomColor: t.borderLight }}>
                     <div>
-                        <div style={styles.welcomeTag}>{'// welcome_back'}</div>
-                        <h1 style={styles.welcomeTitle}>
+                        <div style={{ ...styles.welcomeTag, background: t.tagBg, color: t.textMuted }}>{'// welcome_back'}</div>
+                        <h1 style={{ ...styles.welcomeTitle, color: t.text }}>
                             <span style={styles.kw}>const</span> player{' '}
                             <span style={styles.op}>=</span>{' '}
-                            <span style={styles.str}>"{user?.username || 'coder'}"</span>
+                            <span style={{ ...styles.str, color: t.yellow }}>"{user?.username || 'coder'}"</span>
                         </h1>
                     </div>
-                    <div style={styles.rankBadge}>
-                        <div style={styles.rankLabel}>RANK</div>
-                        <div style={styles.rankVal}>{user?.rank || 'Beginner'}</div>
+                    <div style={{ ...styles.rankBadge, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+                        <div style={{ ...styles.rankLabel, color: t.textMuted }}>RANK</div>
+                        <div style={{ ...styles.rankVal, color: t.green }}>{user?.rank || 'Beginner'}</div>
                     </div>
                 </div>
 
                 {/* Stats */}
-                <div style={styles.statsRow}>
+                <div style={{ ...styles.statsRow, borderColor: t.border }}>
                     {[
                         { label: 'Total XP', val: user?.totalXP || 0, color: '#e6db74' },
                         { label: 'Quizzes Played', val: user?.quizzesPlayed || 0, color: '#a6e22e' },
@@ -245,34 +266,34 @@ export default function Dashboard() {
                         { label: 'Badges', val: user?.badges?.length || 0, color: '#f92672' },
                         { label: 'Streak', val: `${user?.streak || 0} days`, color: '#e6db74' },
                     ].map((stat, i) => (
-                        <div key={stat.label} style={{ ...styles.statCard, borderRight: i < 4 ? '3px solid #75715e' : 'none' }}>
-                            <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
-                            <div style={styles.statLabel}>{stat.label}</div>
+                        <div key={stat.label} style={{ ...styles.statCard, background: t.cardBg, borderRight: i < 4 ? `3px solid ${t.border}` : 'none' }}>
+                            <div style={{ ...styles.statVal, color: themeColor(stat.color, t) }}>{stat.val}</div>
+                            <div style={{ ...styles.statLabel, color: t.textMuted }}>{stat.label}</div>
                         </div>
                     ))}
                 </div>
 
                 {/* Challenge invites */}
-                <div style={styles.sectionTag}>{'// challenge_invites'}</div>
-                <div style={styles.invitesCard}>
+                <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// challenge_invites'}</div>
+                <div style={{ ...styles.invitesCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
                     {invitesLoading ? (
-                        <div style={styles.emptyTag}>{'// loading_invites...'}</div>
+                        <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// loading_invites...'}</div>
                     ) : invites.length === 0 ? (
-                        <div style={styles.emptyTag}>{'// no_pending_challenges'}</div>
+                        <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_pending_challenges'}</div>
                     ) : (
                         invites.map((inv, i) => (
-                            <div key={inv.id} style={{ ...styles.inviteRow, borderBottom: i < invites.length - 1 ? '2px solid #3e3d32' : 'none' }}>
+                            <div key={inv.id} style={{ ...styles.inviteRow, borderBottom: i < invites.length - 1 ? `2px solid ${t.borderLight}` : 'none' }}>
                                 <div style={styles.inviteLeft}>
-                                    <span style={styles.inviteFrom}>
+                                    <span style={{ ...styles.inviteFrom, color: t.text }}>
                                         {inv.sender?.isOnline && <span style={styles.onlineDot} />}
                                         {inv.sender?.username || 'someone'}
                                     </span>
-                                    <span style={styles.inviteMeta}>
+                                    <span style={{ ...styles.inviteMeta, color: t.textMuted }}>
                                         challenges you
                                         {inv.category?.name ? ` · ${inv.category.name}` : ''}
                                         {inv.difficulty ? ` · ${inv.difficulty}` : ''}
                                     </span>
-                                    {inv.message && <span style={styles.inviteMessage}>"{inv.message}"</span>}
+                                    {inv.message && <span style={{ ...styles.inviteMessage, color: t.yellow }}>"{inv.message}"</span>}
                                 </div>
                                 <div style={styles.inviteBtns}>
                                     <button
@@ -300,13 +321,13 @@ export default function Dashboard() {
                     {/* Left */}
                     <div>
                         {/* Quick actions */}
-                        <div style={styles.sectionTag}>{'// quick_actions'}</div>
+                        <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// quick_actions'}</div>
                         <div style={styles.actionsGrid}>
 
                             {/* Solo */}
-                            <div style={{ ...styles.actionCard, borderTop: '4px solid #a6e22e' }}>
-                                <div style={{ ...styles.actionTitle, color: '#a6e22e' }}>SOLO QUIZ</div>
-                                <div style={styles.actionSub}>Practice at your own pace. Pick a category and go.</div>
+                            <div style={{ ...styles.actionCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow, borderTop: `4px solid ${t.green}` }}>
+                                <div style={{ ...styles.actionTitle, color: t.green }}>SOLO QUIZ</div>
+                                <div style={{ ...styles.actionSub, color: t.textMuted }}>Practice at your own pace. Pick a category and go.</div>
                                 <button
                                     style={styles.soloBtn}
                                     onClick={() => navigate('/quiz', { state: { mode: 'solo' } })}
@@ -318,9 +339,9 @@ export default function Dashboard() {
                             </div>
 
                             {/* 1v1 */}
-                            <div style={{ ...styles.actionCard, borderTop: '4px solid #f92672' }}>
+                            <div style={{ ...styles.actionCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow, borderTop: '4px solid #f92672' }}>
                                 <div style={{ ...styles.actionTitle, color: '#f92672' }}>1v1 CHALLENGE</div>
-                                <div style={styles.actionSub}>Battle an opponent in real-time.</div>
+                                <div style={{ ...styles.actionSub, color: t.textMuted }}>Battle an opponent in real-time.</div>
                                 <div style={styles.challengeBtns}>
                                     <button
                                         style={styles.randomBtn}
@@ -331,9 +352,9 @@ export default function Dashboard() {
                                         ⚔ Find Random Opponent
                                     </button>
                                     <div style={styles.orDivider}>
-                                        <div style={styles.orLine}></div>
-                                        <span style={styles.orText}>OR</span>
-                                        <div style={styles.orLine}></div>
+                                        <div style={{ ...styles.orLine, background: t.borderLight }}></div>
+                                        <span style={{ ...styles.orText, color: t.textMuted }}>OR</span>
+                                        <div style={{ ...styles.orLine, background: t.borderLight }}></div>
                                     </div>
 
                                     {!showChallenge ? (
@@ -349,7 +370,7 @@ export default function Dashboard() {
                                         <div style={styles.challengeFormCol}>
                                             <div style={styles.challengeSelectRow}>
                                                 <select
-                                                    style={styles.challengeSelect}
+                                                    style={{ ...styles.challengeSelect, background: t.pageBg, borderColor: t.border, color: t.text }}
                                                     value={chCategory}
                                                     onChange={e => setChCategory(e.target.value)}
                                                 >
@@ -359,7 +380,7 @@ export default function Dashboard() {
                                                     ))}
                                                 </select>
                                                 <select
-                                                    style={styles.challengeSelect}
+                                                    style={{ ...styles.challengeSelect, background: t.pageBg, borderColor: t.border, color: t.text }}
                                                     value={chDifficulty}
                                                     onChange={e => setChDifficulty(e.target.value)}
                                                 >
@@ -371,7 +392,7 @@ export default function Dashboard() {
                                             <div style={styles.challengeForm}>
                                                 <div style={styles.searchWrap} ref={searchWrapRef}>
                                                     <input
-                                                        style={styles.challengeInput}
+                                                        style={{ ...styles.challengeInput, background: t.pageBg, borderColor: t.border, color: t.text }}
                                                         type="text"
                                                         placeholder="opponent_username"
                                                         value={opponent}
@@ -382,25 +403,25 @@ export default function Dashboard() {
                                                         autoFocus
                                                     />
                                                     {showDropdown && (
-                                                        <div style={styles.dropdown}>
+                                                        <div style={{ ...styles.dropdown, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
                                                             {searching ? (
-                                                                <div style={styles.dropdownEmpty}>{'// searching...'}</div>
+                                                                <div style={{ ...styles.dropdownEmpty, color: t.textMuted }}>{'// searching...'}</div>
                                                             ) : results.length === 0 ? (
-                                                                <div style={styles.dropdownEmpty}>{'// no_players_found'}</div>
+                                                                <div style={{ ...styles.dropdownEmpty, color: t.textMuted }}>{'// no_players_found'}</div>
                                                             ) : (
                                                                 results.map((u) => (
                                                                     <div
                                                                         key={u._id}
-                                                                        style={styles.dropdownRow}
+                                                                        style={{ ...styles.dropdownRow, borderBottomColor: t.borderLight }}
                                                                         onClick={() => pickOpponent(u.username)}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = t.borderLight}
                                                                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                                                     >
-                                                                        <span style={styles.dropdownName}>
+                                                                        <span style={{ ...styles.dropdownName, color: t.text }}>
                                                                             {u.isOnline && <span style={styles.onlineDot} />}
                                                                             {u.username}
                                                                         </span>
-                                                                        <span style={styles.dropdownRank}>{u.rank}</span>
+                                                                        <span style={{ ...styles.dropdownRank, color: t.textMuted }}>{u.rank}</span>
                                                                     </div>
                                                                 ))
                                                             )}
@@ -421,8 +442,8 @@ export default function Dashboard() {
                                     {challengeMsg && (
                                         <div style={{
                                             ...styles.challengeMsg,
-                                            color: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
-                                            borderColor: challengeMsg.type === 'success' ? '#a6e22e' : '#f92672',
+                                            color: challengeMsg.type === 'success' ? t.green : '#f92672',
+                                            borderColor: challengeMsg.type === 'success' ? t.green : '#f92672',
                                         }}>
                                             {challengeMsg.text}
                                         </div>
@@ -432,18 +453,18 @@ export default function Dashboard() {
                         </div>
 
                         {/* Recent activity */}
-                        <div style={{ ...styles.sectionTag, marginTop: '20px' }}>{'// recent_activity'}</div>
-                        <div style={styles.activityCard}>
-                            <div style={styles.activityHeader}>// quiz_history</div>
+                        <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted, marginTop: '20px' }}>{'// recent_activity'}</div>
+                        <div style={{ ...styles.activityCard, background: t.cardBg, borderColor: t.border }}>
+                            <div style={{ ...styles.activityHeader, borderBottomColor: t.borderLight, color: t.textMuted }}>// quiz_history</div>
                             {history.length === 0 ? (
-                                <div style={styles.emptyTag}>{'// no_recent_activity — play a quiz to see your history!'}</div>
+                                <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_recent_activity — play a quiz to see your history!'}</div>
                             ) : (
                                 history.map((h, i) => (
-                                    <div key={i} style={{ ...styles.activityRow, borderBottom: i < history.length - 1 ? '1px solid #3e3d32' : 'none' }}>
+                                    <div key={i} style={{ ...styles.activityRow, borderBottom: i < history.length - 1 ? `1px solid ${t.borderLight}` : 'none' }}>
                                         <div style={{ color: '#66d9e8', fontSize: '12px', textAlign: 'left' }}>{h.category?.name || '?'}</div>
-                                        <div style={{ color: '#75715e', fontSize: '11px', textAlign: 'center' }}>{h.difficulty}</div>
-                                        <div style={{ color: '#a6e22e', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{h.correctAnswers}/10</div>
-                                        <div style={{ color: '#e6db74', fontSize: '11px', textAlign: 'right' }}>+{h.earnedXP} XP</div>
+                                        <div style={{ color: t.textMuted, fontSize: '11px', textAlign: 'center' }}>{h.difficulty}</div>
+                                        <div style={{ color: t.green, fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{h.correctAnswers}/10</div>
+                                        <div style={{ color: t.yellow, fontSize: '11px', textAlign: 'right' }}>+{h.earnedXP} XP</div>
                                     </div>
                                 ))
                             )}
@@ -454,14 +475,14 @@ export default function Dashboard() {
                     <div style={styles.rightCol}>
 
                         {/* Leaderboard */}
-                        <div style={styles.sectionTag}>{'// top_players'}</div>
-                        <div style={styles.leaderCard}>
+                        <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// top_players'}</div>
+                        <div style={{ ...styles.leaderCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
                             {leaderboard.map((p, i) => (
-                                <div key={p._id || i} style={{ ...styles.leaderRow, borderBottom: i < 2 ? '1px solid #3e3d32' : 'none' }}>
-                                    <div style={styles.leaderRank}>#{i + 1}</div>
-                                    <div style={styles.leaderName}>{p.username}</div>
-                                    <div style={styles.leaderXP}>
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#e6db74" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
+                                <div key={p._id || i} style={{ ...styles.leaderRow, borderBottom: i < 2 ? `1px solid ${t.borderLight}` : 'none' }}>
+                                    <div style={{ ...styles.leaderRank, color: t.yellow }}>#{i + 1}</div>
+                                    <div style={{ ...styles.leaderName, color: t.text }}>{p.username}</div>
+                                    <div style={{ ...styles.leaderXP, color: t.yellow }}>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill={t.yellow} style={{ marginRight: '4px', verticalAlign: 'middle' }}>
                                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                                         </svg>
                                         {p.totalXP}
@@ -471,16 +492,16 @@ export default function Dashboard() {
                         </div>
 
                         {/* Badges */}
-                        <div style={{ ...styles.sectionTag, marginTop: '16px' }}>{'// badges'}</div>
-                        <div style={styles.badgesCard}>
+                        <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted, marginTop: '16px' }}>{'// badges'}</div>
+                        <div style={{ ...styles.badgesCard, background: t.cardBg, borderColor: t.border }}>
                             {user?.badges?.length > 0 ? (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                     {user.badges.map((badge, i) => (
-                                        <div key={i} style={{ ...styles.badge, borderColor: BADGE_COLORS[badge] || '#75715e', color: BADGE_COLORS[badge] || '#75715e' }}>{badge}</div>
+                                        <div key={i} style={{ ...styles.badge, borderColor: themeColor(BADGE_COLORS[badge] || t.textMuted, t), color: themeColor(BADGE_COLORS[badge] || t.textMuted, t) }}>{badge}</div>
                                     ))}
                                 </div>
                             ) : (
-                                <div style={styles.emptyTag}>{'// no_badges_yet'}</div>
+                                <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_badges_yet'}</div>
                             )}
                         </div>
 
@@ -501,6 +522,7 @@ const styles = {
     navLinks: { display: 'flex' },
     navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+    themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
     navRight: { display: 'flex', alignItems: 'center', gap: '10px' },
     userBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#a6e22e', border: '2px solid #a6e22e', padding: '4px 12px' },
     xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },

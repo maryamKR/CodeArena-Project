@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -22,7 +24,6 @@ const BADGE_COLORS = {
     'Streak 7': '#a6e22e',
 };
 
-// TODO: confirm exact criteria with Maryam's badge system
 const BADGE_INFO = {
     'First Blood': 'Won your very first quiz',
     'Perfect Score': 'Answered every question correctly in a quiz',
@@ -34,9 +35,18 @@ const BADGE_INFO = {
     'Streak 7': 'Played 7 days in a row',
 };
 
+const themeColor = (hex, t) => {
+    if (hex === '#e6db74') return t.yellow;
+    if (hex === '#a6e22e') return t.green;
+    return hex;
+};
+
 export default function Profile() {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
+    const t = getThemeColors(theme);
+
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [myRank, setMyRank] = useState(null);
@@ -66,10 +76,10 @@ export default function Profile() {
     };
 
     return (
-        <div style={styles.page}>
+        <div style={{ ...styles.page, background: t.pageBg }}>
 
             {/* Navbar */}
-            <nav style={styles.nav}>
+            <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
                 <div style={styles.logo}>
                     <span style={styles.bracket}>[</span>
                     <span style={styles.logoName}>CODE</span>
@@ -79,13 +89,15 @@ export default function Profile() {
                 <div style={styles.navLinks}>
                     {NAV_LINKS.map((link, i) => (
                         <a
-
+                        
                             key={link.label}
                             onClick={() => navigate(link.path)}
                             style={{
                                 ...styles.navLink,
+                                borderColor: t.border,
+                                color: t.textMuted,
                                 ...(i === 4 ? styles.navLinkActive : {}),
-                                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                                 cursor: 'pointer',
                             }}
                         >
@@ -93,22 +105,36 @@ export default function Profile() {
                         </a>
                     ))}
                 </div>
-                <div style={styles.xpBadge}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
-                    {user?.totalXP || 0} XP
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+                        {t.isLight ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+                            </svg>
+                        )}
+                    </button>
+                    <div style={styles.xpBadge}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        {user?.totalXP || 0} XP
+                    </div>
                 </div>
             </nav>
 
             <div style={styles.content}>
 
                 {/* Header */}
-                <div style={styles.tag}>{'// profile'}</div>
-                <h1 style={styles.title}>
+                <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// profile'}</div>
+                <h1 style={{ ...styles.title, color: t.text }}>
                     <span style={styles.kw}>const</span> me{' '}
                     <span style={styles.op}>=</span>{' '}
-                    <span style={styles.str}>"{user?.username}"</span>
+                    <span style={{ ...styles.str, color: t.yellow }}>"{user?.username}"</span>
                 </h1>
 
                 <div style={styles.mainGrid}>
@@ -117,33 +143,33 @@ export default function Profile() {
                     <div style={styles.leftCol}>
 
                         {/* User card */}
-                        <div style={styles.userCard}>
+                        <div style={{ ...styles.userCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
                             <div style={styles.avatar}>{user?.username?.[0]?.toUpperCase()}</div>
                             <div>
-                                <div style={styles.username}>{user?.username}</div>
-                                <div style={styles.email}>{user?.email}</div>
-                                <div style={styles.rankBadge}>{user?.rank || 'Beginner'}</div>
+                                <div style={{ ...styles.username, color: t.text }}>{user?.username}</div>
+                                <div style={{ ...styles.email, color: t.textMuted }}>{user?.email}</div>
+                                <div style={{ ...styles.rankBadge, color: t.green, borderColor: t.green, background: t.isLight ? 'rgba(74,122,12,0.15)' : 'rgba(166,226,46,0.15)' }}>{user?.rank || 'Beginner'}</div>
                             </div>
                         </div>
 
                         {/* Stats */}
-                        <div style={styles.statsGrid}>
+                        <div style={{ ...styles.statsGrid, borderColor: t.border }}>
                             {[
                                 { label: 'Total XP', val: user?.totalXP || 0, color: '#e6db74' },
                                 { label: 'Quizzes', val: user?.quizzesPlayed || 0, color: '#a6e22e' },
                                 { label: 'Global Rank', val: myRank ? `#${myRank.globalRank}` : '-', color: '#66d9e8' },
                                 { label: 'Badges', val: user?.badges?.length || 0, color: '#f92672' },
                             ].map((stat) => (
-                                <div key={stat.label} style={styles.statCard}>
-                                    <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
-                                    <div style={styles.statLabel}>{stat.label}</div>
+                                <div key={stat.label} style={{ ...styles.statCard, background: t.cardBg, borderColor: t.border }}>
+                                    <div style={{ ...styles.statVal, color: themeColor(stat.color, t) }}>{stat.val}</div>
+                                    <div style={{ ...styles.statLabel, color: t.textMuted }}>{stat.label}</div>
                                 </div>
                             ))}
                         </div>
 
                         {/* Badges */}
-                        <div style={styles.section}>
-                            <div style={styles.sectionTag}>{'// badges_earned'}</div>
+                        <div style={{ ...styles.section, background: t.cardBg, borderColor: t.border }}>
+                            <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// badges_earned'}</div>
                             <div style={styles.badgesWrap}>
                                 {user?.badges?.length > 0 ? user.badges.map((badge, i) => (
                                     <div
@@ -152,20 +178,21 @@ export default function Profile() {
                                         onMouseEnter={() => setHoveredBadge(i)}
                                         onMouseLeave={() => setHoveredBadge(null)}
                                     >
-                                        <div style={{ ...styles.badge, borderColor: BADGE_COLORS[badge] || '#75715e', color: BADGE_COLORS[badge] || '#75715e', cursor: 'help' }}>
+                                        <div style={{ ...styles.badge, borderColor: themeColor(BADGE_COLORS[badge] || t.textMuted, t), color: themeColor(BADGE_COLORS[badge] || t.textMuted, t), cursor: 'help' }}>
                                             {badge}
                                         </div>
                                         {hoveredBadge === i && (
-                                            <div style={{ ...styles.tooltip, borderColor: BADGE_COLORS[badge] || '#75715e' }}>
+                                            <div style={{ ...styles.tooltip, background: t.cardBg, borderColor: themeColor(BADGE_COLORS[badge] || t.textMuted, t), color: t.text, boxShadow: t.shadow }}>
                                                 {BADGE_INFO[badge] || 'Achievement unlocked'}
                                             </div>
                                         )}
                                     </div>
                                 )) : (
-                                    <div style={styles.emptyTag}>{'// no_badges_yet — play more quizzes!'}</div>
+                                    <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_badges_yet — play more quizzes!'}</div>
                                 )}
                             </div>
                         </div>
+
                         {/* Admin access — only for admins */}
                         {user?.role === 'admin' && (
                             <button
@@ -177,6 +204,7 @@ export default function Profile() {
                                 ⚙ ADMIN PANEL
                             </button>
                         )}
+
                         {/* Logout */}
                         <button style={styles.logoutBtn} onClick={handleLogout}>
                             logout()
@@ -185,27 +213,27 @@ export default function Profile() {
                     </div>
 
                     {/* Right column — Quiz history */}
-                    <div style={styles.rightCol}>
-                        <div style={styles.sectionTag}>{'// quiz_history'}</div>
+                    <div style={{ ...styles.rightCol, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+                        <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// quiz_history'}</div>
                         {loading ? (
-                            <div style={styles.emptyTag}>{'// loading...'}</div>
+                            <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// loading...'}</div>
                         ) : history.length === 0 ? (
-                            <div style={styles.emptyTag}>{'// no_quizzes_played_yet'}</div>
+                            <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_quizzes_played_yet'}</div>
                         ) : (
                             <div style={styles.historyWrap}>
                                 {history.map((h, i) => (
-                                    <div key={i} style={{ ...styles.historyRow, borderBottom: i < history.length - 1 ? '2px solid #3e3d32' : 'none' }}>
+                                    <div key={i} style={{ ...styles.historyRow, borderBottom: i < history.length - 1 ? `2px solid ${t.borderLight}` : 'none' }}>
                                         <div style={styles.historyLeft}>
-                                            <div style={styles.historyCategory}>{h.category?.name || '?'}</div>
-                                            <div style={styles.historyDiff}>{h.difficulty}</div>
+                                            <div style={{ ...styles.historyCategory, color: t.text }}>{h.category?.name || '?'}</div>
+                                            <div style={{ ...styles.historyDiff, color: t.textMuted }}>{h.difficulty}</div>
                                         </div>
                                         <div style={styles.historyCenter}>
-                                            <div style={styles.historyScore}>
-                                                <span style={{ color: '#a6e22e' }}>{h.correctAnswers}</span>/10
+                                            <div style={{ ...styles.historyScore, color: t.text }}>
+                                                <span style={{ color: t.green }}>{h.correctAnswers}</span>/10
                                             </div>
-                                            <div style={styles.historyDate}>{new Date(h.createdAt).toLocaleDateString()}</div>
+                                            <div style={{ ...styles.historyDate, color: t.textMuted }}>{new Date(h.createdAt).toLocaleDateString()}</div>
                                         </div>
-                                        <div style={{ ...styles.historyXP, color: '#e6db74' }}>+{h.earnedXP} XP</div>
+                                        <div style={{ ...styles.historyXP, color: t.yellow }}>+{h.earnedXP} XP</div>
                                     </div>
                                 ))}
                             </div>
@@ -228,6 +256,7 @@ const styles = {
     navLinks: { display: 'flex' },
     navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+    themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
     xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },
 
     content: { padding: '28px 24px', maxWidth: '1000px', margin: '0 auto' },
@@ -257,11 +286,8 @@ const styles = {
     sectionTag: { fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '12px', letterSpacing: '2px' },
     badgesWrap: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
     badge: { fontSize: '11px', fontWeight: 700, padding: '4px 10px', border: '2px solid', letterSpacing: '1px', textTransform: 'uppercase' },
-    badgesWrap: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-    badge: { fontSize: '11px', fontWeight: 700, padding: '4px 10px', border: '2px solid', letterSpacing: '1px', textTransform: 'uppercase' },
     badgeWrap: { position: 'relative', display: 'inline-block' },
-    tooltip: { position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#1e1f1a', border: '2px solid', color: '#f8f8f2', fontSize: '10px', fontWeight: 400, letterSpacing: '0.5px', textTransform: 'none', padding: '6px 10px', width: 'max-content', maxWidth: '180px', boxShadow: '3px 3px 0 #3e3d32', zIndex: 10, pointerEvents: 'none', },
-    emptyTag: { fontSize: '11px', color: '#75715e', fontStyle: 'italic' },
+    tooltip: { position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#1e1f1a', border: '2px solid', color: '#f8f8f2', fontSize: '10px', fontWeight: 400, letterSpacing: '0.5px', textTransform: 'none', padding: '6px 10px', width: 'max-content', maxWidth: '180px', boxShadow: '3px 3px 0 #3e3d32', zIndex: 10, pointerEvents: 'none' },
     emptyTag: { fontSize: '11px', color: '#75715e', fontStyle: 'italic' },
     adminBtn: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#fd971f', border: '2px solid #fd971f', padding: '10px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', width: '100%', transition: 'all 0.15s' },
     logoutBtn: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '2px solid #f92672', padding: '10px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', width: '100%' },

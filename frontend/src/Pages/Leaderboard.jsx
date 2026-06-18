@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -11,11 +13,6 @@ const NAV_LINKS = [
     { label: 'Profile', path: '/profile' },
 ];
 
-/* ============================================================
-   SVG ICONS
-   ============================================================ */
-
-// Medal — top 3 ranks. color tints gold/silver/bronze.
 const MedalIcon = ({ color = '#e6db74', size = 22 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ verticalAlign: 'middle' }}>
         <path d="M7 2h3.2l-2.4 6.5H4.5L7 2z" fill={color} opacity="0.85" />
@@ -25,7 +22,6 @@ const MedalIcon = ({ color = '#e6db74', size = 22 }) => (
     </svg>
 );
 
-// Bolt — XP value (matches the navbar XP badge).
 const BoltIcon = ({ color = '#e6db74', size = 13 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}
          style={{ marginRight: '5px', verticalAlign: 'middle' }} aria-hidden="true">
@@ -38,6 +34,9 @@ const MEDAL_COLORS = { 1: '#e6db74', 2: '#c0c0c0', 3: '#cd7f32' };
 export default function Leaderboard() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
+    const t = getThemeColors(theme);
+
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -46,47 +45,46 @@ export default function Leaderboard() {
     const [categoryFilters, setCategoryFilters] = useState(['All']);
     const [difficultyFilters] = useState(['All', 'Easy', 'Medium', 'Hard']);
 
-
     useEffect(() => {
-    const fetchLeaderboard = async () => {
-        setLoading(true);
-        try {
-        const params = {};
-        if (category !== 'All') params.category = category;
-        if (difficulty !== 'All') params.difficulty = difficulty;
-        const res = await api.get('/leaderboard', { params });
-        setPlayers(res.data.data || []);
-        } catch {
-        setError('Failed to load leaderboard');
-        } finally {
-        setLoading(false);
-        }
-    };
-    fetchLeaderboard();
+        const fetchLeaderboard = async () => {
+            setLoading(true);
+            try {
+                const params = {};
+                if (category !== 'All') params.category = category;
+                if (difficulty !== 'All') params.difficulty = difficulty;
+                const res = await api.get('/leaderboard', { params });
+                setPlayers(res.data.data || []);
+            } catch {
+                setError('Failed to load leaderboard');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchLeaderboard();
     }, [category, difficulty]);
 
     useEffect(() => {
-    api.get('/categories')
-        .then(res => {
-        if (Array.isArray(res.data)) {
-            setCategoryFilters(['All', ...res.data.map(c => c.slug)]);
-        }
-        })
-        .catch(() => {});
+        api.get('/categories')
+            .then(res => {
+                if (Array.isArray(res.data)) {
+                    setCategoryFilters(['All', ...res.data.map(c => c.slug)]);
+                }
+            })
+            .catch(() => {});
     }, []);
 
     const getRankStyle = (rank) => {
         if (rank === 1) return { color: '#e6db74', borderLeft: '4px solid #e6db74' };
         if (rank === 2) return { color: '#c0c0c0', borderLeft: '4px solid #c0c0c0' };
         if (rank === 3) return { color: '#cd7f32', borderLeft: '4px solid #cd7f32' };
-        return { color: '#75715e', borderLeft: '4px solid #3e3d32' };
+        return { color: t.textMuted, borderLeft: `4px solid ${t.borderLight}` };
     };
 
     return (
-        <div style={styles.page}>
+        <div style={{ ...styles.page, background: t.pageBg }}>
 
             {/* Navbar */}
-            <nav style={styles.nav}>
+            <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
                 <div style={styles.logo}>
                     <span style={styles.bracket}>[</span>
                     <span style={styles.logoName}>CODE</span>
@@ -101,8 +99,10 @@ export default function Leaderboard() {
                             onClick={() => navigate(link.path)}
                             style={{
                                 ...styles.navLink,
+                                borderColor: t.border,
+                                color: t.textMuted,
                                 ...(i === 3 ? styles.navLinkActive : {}),
-                                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                                ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                                 cursor: 'pointer',
                             }}
                         >
@@ -110,9 +110,23 @@ export default function Leaderboard() {
                         </a>
                     ))}
                 </div>
-                <div style={styles.xpBadge}>
-                    <BoltIcon color="#272822" size={14} />
-                    {user?.totalXP || 0} XP
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+                        {t.isLight ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+                            </svg>
+                        )}
+                    </button>
+                    <div style={styles.xpBadge}>
+                        <BoltIcon color="#272822" size={14} />
+                        {user?.totalXP || 0} XP
+                    </div>
                 </div>
             </nav>
 
@@ -121,27 +135,29 @@ export default function Leaderboard() {
                 {/* Header */}
                 <div style={styles.headerRow}>
                     <div>
-                        <div style={styles.tag}>{'// leaderboard'}</div>
-                        <h1 style={styles.title}>
+                        <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// leaderboard'}</div>
+                        <h1 style={{ ...styles.title, color: t.text }}>
                             <span style={styles.kw}>top</span>
                             <span style={styles.fn}>.players</span>
-                            <span style={styles.paren}>()</span>
+                            <span style={{ color: t.text }}>()</span>
                         </h1>
                     </div>
-                    <button style={styles.hallBtn} onClick={() => navigate('/hall-of-fame')}>
+                    <button style={{ ...styles.hallBtn, boxShadow: t.shadow }} onClick={() => navigate('/hall-of-fame')}>
                          Hall of Fame
                     </button>
                 </div>
 
                 {/* Filters */}
-                <div style={styles.filtersRow}>
+                <div style={{ ...styles.filtersRow, background: t.cardBg, borderColor: t.border }}>
                     <div style={styles.filterGroup}>
-                        <span style={styles.filterLabel}>// category:</span>
+                        <span style={{ ...styles.filterLabel, color: t.textMuted }}>// category:</span>
                         {categoryFilters.map(cat => (
                             <button
                                 key={cat}
                                 style={{
                                     ...styles.filterBtn,
+                                    borderColor: t.border,
+                                    color: t.textMuted,
                                     ...(category === cat ? styles.filterBtnActive : {}),
                                 }}
                                 onClick={() => setCategory(cat)}
@@ -151,12 +167,14 @@ export default function Leaderboard() {
                         ))}
                     </div>
                     <div style={styles.filterGroup}>
-                        <span style={styles.filterLabel}>// difficulty:</span>
+                        <span style={{ ...styles.filterLabel, color: t.textMuted }}>// difficulty:</span>
                         {difficultyFilters.map(diff => (
                             <button
                                 key={diff}
                                 style={{
                                     ...styles.filterBtn,
+                                    borderColor: t.border,
+                                    color: t.textMuted,
                                     ...(difficulty === diff ? styles.filterBtnActive : {}),
                                 }}
                                 onClick={() => setDifficulty(diff)}
@@ -169,13 +187,13 @@ export default function Leaderboard() {
 
                 {/* Table */}
                 {loading ? (
-                    <div style={styles.loadingTag}>{'// loading_players...'}</div>
+                    <div style={{ ...styles.loadingTag, color: t.textMuted }}>{'// loading_players...'}</div>
                 ) : error ? (
                     <div style={styles.errorBox}>{error}</div>
                 ) : (
-                    <div style={styles.tableWrap}>
+                    <div style={{ ...styles.tableWrap, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
                         {/* Table header */}
-                        <div style={styles.tableHeader}>
+                        <div style={{ ...styles.tableHeader, borderBottomColor: t.border, color: t.textMuted }}>
                             <div style={{ width: '60px' }}>RANK</div>
                             <div style={{ flex: 1 }}>PLAYER</div>
                             <div style={{ width: '120px', textAlign: 'right' }}>TOTAL XP</div>
@@ -193,6 +211,7 @@ export default function Leaderboard() {
                                     key={player._id}
                                     style={{
                                         ...styles.tableRow,
+                                        borderBottomColor: t.borderLight,
                                         ...rankStyle,
                                         ...(isCurrentUser ? styles.currentUserRow : {}),
                                     }}
@@ -203,21 +222,21 @@ export default function Leaderboard() {
                                             : `#${rank}`}
                                     </div>
                                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{ ...styles.avatar, background: isCurrentUser ? '#a6e22e' : '#3e3d32', color: isCurrentUser ? '#272822' : '#f8f8f2' }}>
+                                        <div style={{ ...styles.avatar, background: isCurrentUser ? '#a6e22e' : t.borderLight, color: isCurrentUser ? '#272822' : t.text }}>
                                             {player.username?.[0]?.toUpperCase()}
                                         </div>
-                                        <span style={{ fontWeight: 700, color: isCurrentUser ? '#a6e22e' : '#f8f8f2' }}>
+                                        <span style={{ fontWeight: 700, color: isCurrentUser ? t.green : t.text }}>
                                             {player.username}
-                                            {isCurrentUser && <span style={{ fontSize: '10px', color: '#a6e22e', marginLeft: '8px' }}>(you)</span>}
+                                            {isCurrentUser && <span style={{ fontSize: '10px', color: t.green, marginLeft: '8px' }}>(you)</span>}
                                         </span>
                                     </div>
-                                    <div style={{ width: '120px', textAlign: 'right', color: '#e6db74', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        <BoltIcon color="#e6db74" size={13} /> {player.totalXP}
+                                    <div style={{ width: '120px', textAlign: 'right', color: t.yellow, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                        <BoltIcon color={t.yellow} size={13} /> {player.totalXP}
                                     </div>
-                                    <div style={{ width: '100px', textAlign: 'right', color: '#75715e' }}>
+                                    <div style={{ width: '100px', textAlign: 'right', color: t.textMuted }}>
                                         {player.quizzesPlayed || 0}
                                     </div>
-                                    <div style={{ width: '100px', textAlign: 'right', color: '#75715e' }}>
+                                    <div style={{ width: '100px', textAlign: 'right', color: t.textMuted }}>
                                         {player.badges?.length || 0}
                                     </div>
                                 </div>
@@ -225,7 +244,7 @@ export default function Leaderboard() {
                         })}
 
                         {players.length === 0 && (
-                            <div style={styles.emptyTag}>{'// no_players_found'}</div>
+                            <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_players_found'}</div>
                         )}
                     </div>
                 )}
@@ -243,6 +262,7 @@ const styles = {
     navLinks: { display: 'flex' },
     navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+    themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
     xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', display: 'flex', alignItems: 'center' },
 
     content: { padding: '28px 24px', maxWidth: '900px', margin: '0 auto' },

@@ -2,11 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../api/axios';
-
-/* ============================================================
-   MOCK DATA — each block maps to one Flask endpoint for Asmaa
-   ============================================================ */
 
 const CATEGORIES = [
   { id: 'js', label: 'JavaScript', short: 'JS', count: 142, solved: 34, color: '#e6db74' },
@@ -53,15 +50,18 @@ const RECENT_ACTIVITY = [
   { tag: 'PY · EASY', color: '#66d9e8', score: '10/10', xp: 60, when: '2 days ago' },
 ];
 
+// helper: swap bright yellow/green for their dark-mode-safe versions
+const themeColor = (hex, t) => {
+  if (hex === '#e6db74') return t.yellow;
+  if (hex === '#a6e22e') return t.green;
+  return hex;
+};
+
 export default function Home() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const isLight = theme === 'light';
-
-  // theme-aware overrides — only the page background + text sitting directly on it
-  const pageBg = isLight ? '#e8e6dd' : '#272822';
-  const onBgText = isLight ? '#272822' : '#f8f8f2';
+  const t = getThemeColors(theme);
 
   const [selectedCat, setSelectedCat] = useState('js');
   const [showAllCats, setShowAllCats] = useState(false);
@@ -72,7 +72,6 @@ export default function Home() {
   const stats = user ? USER_STATS : GLOBAL_STATS;
   const visibleCats = showAllCats ? CATEGORIES : CATEGORIES.slice(0, 4);
 
-  // Fetch today's daily challenge (auth-only per API)
   useEffect(() => {
     if (!user) return;
     api.get('/daily-challenge')
@@ -83,7 +82,6 @@ export default function Home() {
       .catch(() => setDaily(null));
   }, [user]);
 
-  // Live countdown
   useEffect(() => {
     if (resetsIn <= 0) return;
     const id = setInterval(() => setResetsIn(s => (s > 0 ? s - 1 : 0)), 1000);
@@ -103,10 +101,10 @@ export default function Home() {
   };
 
   return (
-    <div style={{ ...styles.page, background: pageBg }}>
+    <div style={{ ...styles.page, background: t.pageBg }}>
 
       {/* Navbar */}
-      <nav style={styles.nav}>
+      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
           <span style={styles.logoName}>CODE</span>
@@ -121,8 +119,10 @@ export default function Home() {
               onClick={() => navigate(link.path)}
               style={{
                 ...styles.navLink,
-                ...(i === 0 ? styles.navLinkActive : {}),
-                ...(i === visibleLinks.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                borderColor: t.border,
+                color: t.textMuted,
+                ...(i === 0 ? { ...styles.navLinkActive } : {}),
+                ...(i === visibleLinks.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                 cursor: 'pointer',
               }}
             >
@@ -131,9 +131,9 @@ export default function Home() {
           ))}
         </div>
         <div style={styles.navRight}>
-          <button style={styles.themeToggle} onClick={toggleTheme} title="Toggle theme">
-            {isLight ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#272822">
+          <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+            {t.isLight ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             ) : (
@@ -163,15 +163,15 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <div style={styles.hero}>
-        <div style={styles.heroTag}>{'// select_category'}</div>
-        <h1 style={{ ...styles.heroTitle, color: onBgText }}>
+      <div style={{ ...styles.hero, borderBottomColor: t.borderLight }}>
+        <div style={{ ...styles.heroTag, background: t.tagBg, color: t.textMuted }}>{'// select_category'}</div>
+        <h1 style={{ ...styles.heroTitle, color: t.text }}>
           <span style={styles.kw}>const</span>{' '}
           arena <span style={styles.op}>=</span>{' '}
           <span style={styles.fn}>play</span>
-          <span style={{ color: onBgText }}>(</span>
-          <span style={styles.str}>"now"</span>
-          <span style={{ color: onBgText }}>)</span>
+          <span style={{ color: t.text }}>(</span>
+          <span style={{ ...styles.str, color: t.yellow }}>"now"</span>
+          <span style={{ color: t.text }}>)</span>
         </h1>
         <p style={styles.heroSub}>{'// Choose your battlefield. Prove your skills.'}</p>
       </div>
@@ -181,8 +181,8 @@ export default function Home() {
         <div style={styles.ctaWrap}>
           <div style={styles.ctaPanel}>
             <div>
-              <div style={styles.panelTag}>{'// new_here'}</div>
-              <div style={styles.ctaText}>Sign up to save XP, climb the leaderboard & keep your streak.</div>
+              <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// new_here'}</div>
+              <div style={{ ...styles.ctaText, color: t.text }}>Sign up to save XP, climb the leaderboard & keep your streak.</div>
             </div>
             <div style={styles.ctaBtns}>
               <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
@@ -193,30 +193,32 @@ export default function Home() {
       )}
 
       {/* Categories */}
-      <div style={styles.catsGrid}>
+      <div style={{ ...styles.catsGrid, borderColor: t.border }}>
         {visibleCats.map((cat, i, arr) => (
           <div
             key={cat.id}
             onClick={() => setSelectedCat(cat.id)}
             style={{
               ...styles.catCard,
-              borderTop: `4px solid ${cat.color}`,
-              borderRight: i < arr.length - 1 ? '3px solid #75715e' : 'none',
-              ...(selectedCat === cat.id ? { background: '#3e3d32', outline: `2px solid ${cat.color}`, outlineOffset: '-2px' } : {}),
+              background: t.cardAltBg,
+              borderTop: `4px solid ${themeColor(cat.color, t)}`,
+              borderRight: i < arr.length - 1 ? `3px solid ${t.border}` : 'none',
+              borderBottomColor: t.border,
+              ...(selectedCat === cat.id ? { background: t.isLight ? '#c5c2b5' : '#3e3d32', outline: `2px solid ${themeColor(cat.color, t)}`, outlineOffset: '-2px' } : {}),
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#3e3d32'}
-            onMouseLeave={e => e.currentTarget.style.background = selectedCat === cat.id ? '#3e3d32' : '#2d2c28'}
+            onMouseEnter={e => e.currentTarget.style.background = t.isLight ? '#c5c2b5' : '#3e3d32'}
+            onMouseLeave={e => e.currentTarget.style.background = selectedCat === cat.id ? (t.isLight ? '#c5c2b5' : '#3e3d32') : t.cardAltBg}
           >
-            <div style={{ ...styles.catIcon, color: cat.color }}>{cat.short}</div>
-            <div style={styles.catName}>{cat.label}</div>
-            <div style={styles.catCount}>{cat.count} questions</div>
+            <div style={{ ...styles.catIcon, color: themeColor(cat.color, t) }}>{cat.short}</div>
+            <div style={{ ...styles.catName, color: t.text }}>{cat.label}</div>
+            <div style={{ ...styles.catCount, color: t.textMuted }}>{cat.count} questions</div>
 
             {user && (
               <>
-                <div style={styles.catBarTrack}>
-                  <div style={{ ...styles.catBarFill, width: `${(cat.solved / cat.count) * 100}%`, background: cat.color }} />
+                <div style={{ ...styles.catBarTrack, background: t.isLight ? '#b8b5a8' : '#1e1f1a', borderColor: t.borderLight }}>
+                  <div style={{ ...styles.catBarFill, width: `${(cat.solved / cat.count) * 100}%`, background: themeColor(cat.color, t) }} />
                 </div>
-                <div style={styles.catSolved}>{cat.solved}/{cat.count} solved</div>
+                <div style={{ ...styles.catSolved, color: t.textMuted }}>{cat.solved}/{cat.count} solved</div>
               </>
             )}
           </div>
@@ -225,33 +227,33 @@ export default function Home() {
 
       {/* Show more / less categories */}
       {CATEGORIES.length > 4 && (
-        <div style={styles.showMoreRow}>
+        <div style={{ ...styles.showMoreRow, borderBottomColor: t.border, background: t.cardBg }}>
           <button
-            style={styles.showMoreBtn}
+            style={{ ...styles.showMoreBtn, color: t.green, borderColor: t.green }}
             onClick={() => setShowAllCats(v => !v)}
-            onMouseEnter={e => { e.currentTarget.style.background = '#a6e22e'; e.currentTarget.style.color = '#272822'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a6e22e'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.green; e.currentTarget.style.color = '#272822'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.green; }}
           >
             {showAllCats ? '− show less' : `+ show ${CATEGORIES.length - 4} more`}
           </button>
         </div>
       )}
 
-      {/* Stats — personal when logged in, global when logged out */}
-      <div style={styles.statsGrid}>
+      {/* Stats */}
+      <div style={{ ...styles.statsGrid, borderBottomColor: t.border }}>
         {stats.map((stat, i) => (
-          <div key={stat.label} style={{ ...styles.statCard, background: pageBg, borderRight: i < 2 ? '3px solid #75715e' : 'none' }}>
-            <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
-            <div style={styles.statLabel}>{stat.label}</div>
+          <div key={stat.label} style={{ ...styles.statCard, background: t.pageBg, borderRight: i < 2 ? `3px solid ${t.border}` : 'none' }}>
+            <div style={{ ...styles.statVal, color: themeColor(stat.color, t) }}>{stat.val}</div>
+            <div style={{ ...styles.statLabel, color: t.textMuted }}>{stat.label}</div>
           </div>
         ))}
       </div>
 
       {/* Start */}
-      <div style={{ ...styles.startRow, background: pageBg }}>
+      <div style={{ ...styles.startRow, background: t.pageBg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
-            style={styles.startBtn}
+            style={{ ...styles.startBtn, boxShadow: t.shadow }}
             onClick={handleStartQuiz}
             onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
             onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
@@ -259,11 +261,11 @@ export default function Home() {
             ▶ START QUIZ
           </button>
           {!user && (
-            <span style={styles.loginNote}>{'// login required to play & save score'}</span>
+            <span style={{ ...styles.loginNote, color: t.textMuted }}>{'// login required to play & save score'}</span>
           )}
         </div>
         {user && (
-          <div style={styles.streak}>
+          <div style={{ ...styles.streak, color: t.yellow }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#f92672" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M12 2c0 0-5 4-5 9a5 5 0 0010 0c0-2-1-4-2-5 0 2-1 3-3 3s-2-2-2-3c0-2 2-4 2-4z" />
             </svg>
@@ -276,11 +278,11 @@ export default function Home() {
       <div style={styles.panelsGrid}>
 
         {/* Daily challenge */}
-        <div style={styles.panel}>
-          <div style={styles.panelTag}>{'// daily_challenge'}</div>
+        <div style={{ ...styles.panel, background: t.cardAltBg, borderColor: t.border }}>
+          <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// daily_challenge'}</div>
           {daily ? (
             <>
-              <div style={styles.dcTitle}>{daily.category?.name} challenge</div>
+              <div style={{ ...styles.dcTitle, color: t.text }}>{daily.category?.name} challenge</div>
               <div style={styles.dcTags}>
                 <span style={{ ...styles.dcPill, color: daily.category?.color || '#e6db74', borderColor: daily.category?.color || '#e6db74' }}>
                   {daily.category?.slug?.toUpperCase()}
@@ -288,18 +290,18 @@ export default function Home() {
                 <span style={{ ...styles.dcPill, color: '#f92672', borderColor: '#f92672' }}>
                   {daily.difficulty?.toUpperCase()}
                 </span>
-                <span style={styles.dcBonus}>+{daily.bonusXP} BONUS XP</span>
+                <span style={{ ...styles.dcBonus, color: t.green }}>+{daily.bonusXP} BONUS XP</span>
               </div>
               <div style={styles.dcFooter}>
-                <span style={styles.dcTimer}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#75715e" strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <span style={{ ...styles.dcTimer, color: t.textMuted }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
                     <circle cx="12" cy="12" r="9" />
                     <path d="M12 7v5l3 3" />
                   </svg>
                   resets in {formatCountdown(resetsIn)}
                 </span>
                 {daily.completedToday ? (
-                  <span style={styles.dcDone}>✓ COMPLETED</span>
+                  <span style={{ ...styles.dcDone, color: t.green, borderColor: t.green }}>✓ COMPLETED</span>
                 ) : (
                   <button
                     style={styles.dcAccept}
@@ -320,26 +322,27 @@ export default function Home() {
               </div>
             </>
           ) : (
-            <div style={{ ...styles.dcTimer, marginTop: '12px' }}>
+            <div style={{ ...styles.dcTimer, color: t.textMuted, marginTop: '12px' }}>
               {user ? '// no challenge set for today' : '// login to view today\'s challenge'}
             </div>
           )}
         </div>
 
         {/* Top players */}
-        <div style={styles.panel}>
-          <div style={styles.panelTag}>{'// top_players'}</div>
+        <div style={{ ...styles.panel, background: t.cardAltBg, borderColor: t.border }}>
+          <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// top_players'}</div>
           <div style={{ marginTop: '10px' }}>
             {TOP_PLAYERS.map((p, i) => (
               <div
                 key={p.rank}
                 style={{
                   ...styles.lbRow,
-                  ...(i === TOP_PLAYERS.length - 1 ? { borderBottom: '2px dashed #3e3d32', paddingBottom: '8px' } : {}),
+                  color: t.text,
+                  ...(i === TOP_PLAYERS.length - 1 ? { borderBottom: `2px dashed ${t.borderLight}`, paddingBottom: '8px' } : {}),
                 }}
               >
-                <span><span style={{ color: p.color }}>#{p.rank}</span> {p.name}</span>
-                <span style={{ color: '#75715e' }}>{p.xp}</span>
+                <span><span style={{ color: themeColor(p.color, t) }}>#{p.rank}</span> {p.name}</span>
+                <span style={{ color: t.textMuted }}>{p.xp}</span>
               </div>
             ))}
             {user && (
@@ -349,23 +352,23 @@ export default function Home() {
               </div>
             )}
           </div>
-          <a onClick={() => navigate('/leaderboard')} style={styles.lbLink}>view full leaderboard →</a>
+          <a onClick={() => navigate('/leaderboard')} style={{ ...styles.lbLink, color: t.textMuted }}>view full leaderboard →</a>
         </div>
       </div>
 
       {/* Recent activity — logged-in only */}
       {user && (
         <div style={styles.activityWrap}>
-          <div style={styles.activityPanel}>
-            <div style={styles.panelTag}>{'// recent_activity'}</div>
+          <div style={{ ...styles.activityPanel, background: t.cardAltBg }}>
+            <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// recent_activity'}</div>
             <div style={styles.activityGrid}>
               {RECENT_ACTIVITY.map((a) => (
-                <div key={a.tag + a.when} style={styles.activityCell}>
-                  <div style={{ ...styles.actTag, color: a.color }}>{a.tag}</div>
-                  <div style={styles.actScore}>
-                    {a.score} <span style={styles.actXp}>+{a.xp} XP</span>
+                <div key={a.tag + a.when} style={{ ...styles.activityCell, borderColor: t.borderLight }}>
+                  <div style={{ ...styles.actTag, color: themeColor(a.color, t) }}>{a.tag}</div>
+                  <div style={{ ...styles.actScore, color: t.text }}>
+                    {a.score} <span style={{ ...styles.actXp, color: t.green }}>+{a.xp} XP</span>
                   </div>
-                  <div style={styles.actWhen}>{a.when}</div>
+                  <div style={{ ...styles.actWhen, color: t.textMuted }}>{a.when}</div>
                 </div>
               ))}
             </div>
@@ -455,5 +458,4 @@ const styles = {
   actScore: { fontFamily: "'Space Mono', monospace", fontSize: '15px', fontWeight: 700, color: '#f8f8f2', margin: '4px 0' },
   actXp: { fontSize: '10px', color: '#a6e22e' },
   actWhen: { fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#75715e' },
-
 };
