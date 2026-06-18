@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { quizAPI } from '../api/quiz';
+import { quizAPI } from '../API/quiz';
 
 export function useQuiz(category, difficulty) {
   const [questions, setQuestions] = useState([]);
