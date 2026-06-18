@@ -298,7 +298,8 @@ Fetches all available categories.
     "_id": "...",
     "name": "Frontend",
     "slug": "frontend",
-    "color": "#e34c26"
+    "color": "#e34c26",
+    "questionCount": 42
   }
 ]
 ```
@@ -330,6 +331,40 @@ Creates a new category. Fails if the slug is already in use.
   "color": "#e34c26"
 }
 ```
+
+**Error responses:**
+- `400` — slug already in use
+- `403` — not an admin
+
+---
+
+### Delete Category
+`DELETE /categories/:id`
+
+Deletes a category by its ID. Fails if the category still has questions linked to it.
+
+**Auth required:** yes (Admin only)
+
+**URL params:**
+- `id` — ObjectId of the category to delete
+
+**Response `200`:**
+```json
+{
+  "message": "Category deleted successfully",
+  "category": {
+    "_id": "...",
+    "name": "Frontend",
+    "slug": "frontend",
+    "color": "#e34c26"
+  }
+}
+```
+
+**Error responses:**
+- `400` — category still has questions associated with it
+- `403` — not an admin
+- `404` — category not found
 
 ---
 
