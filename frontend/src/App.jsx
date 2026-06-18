@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './Context/AuthContext';
 import ProtectedRoute from './Routes/ProtectedRoute';
 import QuizPlay from './Pages/QuizPlay';
@@ -16,11 +16,18 @@ import Matchmaking from './Pages/Matchmaking';
 import ResetPassword from './Pages/ResetPassword';
 import ForgotPassword from './Pages/ForgotPassword';
 import ChallengeNotification from './components/ChallengeNotification';
+
+function ChallengeNotificationGate() {
+  const location = useLocation();
+  if (location.pathname === '/dashboard') return null;
+  return <ChallengeNotification />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-      <ChallengeNotification />
+      <ChallengeNotificationGate />
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />
