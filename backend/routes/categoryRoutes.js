@@ -4,7 +4,7 @@ const categoryController = require('../controllers/categoryController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
 const { categorySchema, deleteCategorySchema } = require('../validators/categoryValidator');
-const validate = require('../middlewares/validateMiddleware');
+const validate = require('../middlewares/validate');
 
 // Public: Anyone can see the list of categories to choose from
 router.get('/', categoryController.getCategories);
