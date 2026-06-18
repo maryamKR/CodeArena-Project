@@ -11,6 +11,12 @@ const onlineUsers = new Map();
 
 const initSocket = (server) => {
   const io = new Server(server, {
+    // Prefer WebSocket, fall back to polling.
+    // Railway's proxy handles WebSocket upgrades natively.
+    transports: ['websocket', 'polling'],
+    // Keep connections alive through Railway's proxy idle timeout
+    pingTimeout: 60000,
+    pingInterval: 25000,
     cors: {
       origin: function (origin, callback) {
         const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -24,6 +30,7 @@ const initSocket = (server) => {
         }
       },
       credentials: true,
+      methods: ['GET', 'POST'],
     },
   });
 
