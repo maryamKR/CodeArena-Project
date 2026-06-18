@@ -11,9 +11,8 @@ const onlineUsers = new Map();
 
 const initSocket = (server) => {
   const io = new Server(server, {
-    // Prefer WebSocket, fall back to polling.
-    // Railway's proxy handles WebSocket upgrades natively.
-    transports: ['websocket', 'polling'],
+    // Start with polling so Railway's proxy can negotiate the HTTP upgrade to WebSocket
+    transports: ['polling', 'websocket'],
     // Keep connections alive through Railway's proxy idle timeout
     pingTimeout: 60000,
     pingInterval: 25000,
