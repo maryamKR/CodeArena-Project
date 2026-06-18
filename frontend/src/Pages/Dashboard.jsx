@@ -80,10 +80,26 @@ export default function Dashboard() {
             });
         });
 
+        // Handle challenge_accepted here because ChallengeNotification is
+        // suppressed on /dashboard (to avoid duplicate challenge_received).
+        // Without this, User A (the sender) never gets redirected after
+        // their invite is accepted.
+        socket.on('challenge_accepted', (data) => {
+            navigate(`/match/${data.id}`, {
+                state: {
+                    challengeId: data.id,
+                    opponent: data.receiver,
+                    category: data.category,
+                    difficulty: data.difficulty,
+                },
+            });
+        });
+
         return () => {
             socket.off('challenge_received');
+            socket.off('challenge_accepted');
         };
-    }, []);
+    }, [navigate]);
 
     // Close the username dropdown when clicking outside it
     useEffect(() => {
