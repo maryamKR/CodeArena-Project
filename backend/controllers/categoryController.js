@@ -17,3 +17,17 @@ exports.addCategory = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.deleteCategory = async (req, res, next) => {
+  try {
+    const deletedCategory = await categoryService.deleteCategory(req.params.id);
+    res.status(200).json({ message: 'Category deleted successfully', category: deletedCategory });
+  } catch (err) {
+    if (err.message === 'Invalid Category ID' || err.message === 'Category not found') {
+      res.status(404);
+    } else if (err.message === 'Cannot delete category with existing questions') {
+      res.status(400);
+    }
+    next(err);
+  }
+};

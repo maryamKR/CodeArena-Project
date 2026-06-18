@@ -9,4 +9,8 @@ router.get('/', categoryController.getCategories);
 // Admin: Add a new category
 router.post('/', protect, authorize('admin'), categoryController.addCategory);
 
+// Admin: Delete a category
+router.delete('/:id', protect, authorize('admin'), categoryController.deleteCategory);
+
 module.exports = router;
+
