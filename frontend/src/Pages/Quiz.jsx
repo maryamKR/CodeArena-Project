@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useLocation } from 'react-router-dom';
-import api from '../api/axios';
+import api from '../API/axios';
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
