@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import { useTheme } from '../Context/ThemeContext';
 import api from '../api/axios';
 
 /* ============================================================
@@ -55,6 +56,12 @@ const RECENT_ACTIVITY = [
 export default function Home() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isLight = theme === 'light';
+
+  // theme-aware overrides — only the page background + text sitting directly on it
+  const pageBg = isLight ? '#e8e6dd' : '#272822';
+  const onBgText = isLight ? '#272822' : '#f8f8f2';
 
   const [selectedCat, setSelectedCat] = useState('js');
   const [showAllCats, setShowAllCats] = useState(false);
@@ -96,7 +103,7 @@ export default function Home() {
   };
 
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, background: pageBg }}>
 
       {/* Navbar */}
       <nav style={styles.nav}>
@@ -124,6 +131,18 @@ export default function Home() {
           ))}
         </div>
         <div style={styles.navRight}>
+          <button style={styles.themeToggle} onClick={toggleTheme} title="Toggle theme">
+            {isLight ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#272822">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+              </svg>
+            )}
+          </button>
           {user ? (
             <>
               <div style={styles.xpBadge}>
@@ -146,13 +165,13 @@ export default function Home() {
       {/* Hero */}
       <div style={styles.hero}>
         <div style={styles.heroTag}>{'// select_category'}</div>
-        <h1 style={styles.heroTitle}>
+        <h1 style={{ ...styles.heroTitle, color: onBgText }}>
           <span style={styles.kw}>const</span>{' '}
           arena <span style={styles.op}>=</span>{' '}
           <span style={styles.fn}>play</span>
-          <span style={styles.paren}>(</span>
+          <span style={{ color: onBgText }}>(</span>
           <span style={styles.str}>"now"</span>
-          <span style={styles.paren}>)</span>
+          <span style={{ color: onBgText }}>)</span>
         </h1>
         <p style={styles.heroSub}>{'// Choose your battlefield. Prove your skills.'}</p>
       </div>
@@ -221,7 +240,7 @@ export default function Home() {
       {/* Stats — personal when logged in, global when logged out */}
       <div style={styles.statsGrid}>
         {stats.map((stat, i) => (
-          <div key={stat.label} style={{ ...styles.statCard, borderRight: i < 2 ? '3px solid #75715e' : 'none' }}>
+          <div key={stat.label} style={{ ...styles.statCard, background: pageBg, borderRight: i < 2 ? '3px solid #75715e' : 'none' }}>
             <div style={{ ...styles.statVal, color: stat.color }}>{stat.val}</div>
             <div style={styles.statLabel}>{stat.label}</div>
           </div>
@@ -229,7 +248,7 @@ export default function Home() {
       </div>
 
       {/* Start */}
-      <div style={styles.startRow}>
+      <div style={{ ...styles.startRow, background: pageBg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
             style={styles.startBtn}
@@ -368,6 +387,7 @@ const styles = {
   navLinks: { display: 'flex' },
   navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
   navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+  themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
   xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', boxShadow: '3px 3px 0 rgba(230,219,116,0.3)', display: 'flex', alignItems: 'center' },
   navRight: { display: 'flex', alignItems: 'center', gap: '8px' },
   loginBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '5px 14px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },

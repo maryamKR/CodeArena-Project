@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import socket from '../socket/socket';
-import api from '../api/axios';
+import api from '../API/axios';
 
 const TIMER_MAX = 10;
 
@@ -14,7 +14,7 @@ export default function Challenge() {
   const category = location.state?.category || 'js';
   const difficulty = location.state?.difficulty || 'easy';
   const challengeId = location.state?.challengeId || null;
-  const [opponent, setOpponent] = useState(location.state?.opponent || null);
+  const [opponent] = useState(location.state?.opponent || null);
 
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -26,6 +26,9 @@ export default function Challenge() {
   const [winner, setWinner] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [waiting, setWaiting] = useState(false); // finished locally, awaiting server result
+  const [matchTime, setMatchTime] = useState(null); // total elapsed seconds
+  const matchStartRef = useRef(null);
 
   const question = questions[current];
 
@@ -35,7 +38,12 @@ export default function Challenge() {
     return '#f92672';
   };
 
-  
+  const fmtTime = (secs) => {
+    if (secs == null) return '—';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     socket.connect();
@@ -53,29 +61,44 @@ export default function Challenge() {
     socket.on('match_ready', (data) => {
       setQuestions(data.questions);
       setLoading(false);
+      matchStartRef.current = Date.now();
     });
 
     socket.on('opponent_progress', (data) => {
-      setOppScore(data.questionsAnswered);
+      // Only update oppScore — ignore events about ourselves
+      if (String(data.userId) !== String(user._id)) {
+        setOppScore(data.questionsAnswered);
+      }
     });
 
-socket.on('match_over', (data) => {
-  const myResult = data.results?.[String(user._id)];
-  const oppResult = Object.entries(data.results || {})
-    .find(([id]) => id !== String(user._id))?.[1];
+    socket.on('match_over', (data) => {
+      const myResult = data.results?.[String(user._id)];
+      const oppResult = Object.entries(data.results || {})
+        .find(([id]) => id !== String(user._id))?.[1];
 
-  if (myResult) setMyScore(myResult.correctCount || 0);
-  if (oppResult) setOppScore(oppResult.correctCount || 0);
+      // Use authoritative server scores
+      if (myResult) setMyScore(myResult.correctCount ?? 0);
+      if (oppResult) setOppScore(oppResult.correctCount ?? 0);
 
-  if (String(data.winnerId) === String(user._id)) {
-    setWinner('you');
-  } else if (data.forfeit && String(data.forfeitedBy) !== String(user._id)) {
-    setWinner('you');
-  } else {
-    setWinner('opponent');
-  }
-  setGameOver(true);
-});
+      // Total match time — wall clock from match_ready to match_over
+      if (matchStartRef.current) {
+        setMatchTime(Math.round((Date.now() - matchStartRef.current) / 1000));
+      }
+
+      // Determine winner — null winnerId means draw
+      if (data.winnerId === null || data.winnerId === undefined) {
+        setWinner('draw');
+      } else if (String(data.winnerId) === String(user._id)) {
+        setWinner('you');
+      } else if (data.forfeit && String(data.forfeitedBy) !== String(user._id)) {
+        setWinner('you');
+      } else {
+        setWinner('opponent');
+      }
+
+      setWaiting(false);
+      setGameOver(true);
+    });
 
     return () => {
       socket.off('connect');
@@ -105,14 +128,15 @@ socket.on('match_over', (data) => {
       } catch {
         // fallback
       }
-
-      socket.emit('submit_answer', {
-        challengeId,
-        questionId: questions[current]?._id,
-        answer: answer,
-        timeTakenSec: TIMER_MAX - timer,
-      });
     }
+
+    // Always emit to the backend so it knows we've passed this question, even if we timed out
+    socket.emit('submit_answer', {
+      challengeId,
+      questionId: questions[current]?._id,
+      answer: answer,
+      timeTakenSec: TIMER_MAX - timer,
+    });
   };
 
   // Timer
@@ -128,11 +152,8 @@ socket.on('match_over', (data) => {
 
   const handleNext = () => {
     if (current + 1 >= questions.length) {
-      const finalMyScore = myScore + (selected === question?.correct_answer ? 1 : 0);
-      if (finalMyScore > oppScore) setWinner('you');
-      else if (oppScore > finalMyScore) setWinner('opponent');
-      else setWinner('draw');
-      setGameOver(true);
+      // All questions answered locally — wait for the server's authoritative match_over
+      setWaiting(true);
       return;
     }
     setCurrent(c => c + 1);
@@ -153,11 +174,20 @@ socket.on('match_over', (data) => {
   }, [answered, gameOver]);
 
   if (loading) return (
-  <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ color: '#75715e', fontFamily: "'Space Mono', monospace" }}>
-      {'// waiting_for_opponent...'}
+    <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: '#75715e', fontFamily: "'Space Mono', monospace" }}>
+        {'// waiting_for_opponent...'}
+      </div>
     </div>
-  </div>
+  );
+
+  if (waiting) return (
+    <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace" }}>
+        <div style={{ color: '#a6e22e', fontSize: '18px', fontWeight: 700, marginBottom: '12px' }}>// done!</div>
+        <div style={{ color: '#75715e', fontSize: '13px' }}>waiting_for_opponent...</div>
+      </div>
+    </div>
   );
   if (gameOver) return (
     <div style={styles.page}>
@@ -197,6 +227,13 @@ socket.on('match_over', (data) => {
               <div style={styles.finalName}>{opponent?.username || 'opponent'}</div>
               <div style={{ ...styles.finalScore, color: '#f92672' }}>{oppScore}</div>
             </div>
+          </div>
+          <div style={styles.matchTimeRow}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fd971f" strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 3" />
+            </svg>
+            match time: <span style={{ color: '#fd971f', fontWeight: 700, marginLeft: '4px' }}>{fmtTime(matchTime)}</span>
           </div>
           <div style={styles.winnerMsg}>
             {winner === 'you' && <div style={{ color: '#a6e22e' }}>// you_crushed_it! +50 XP</div>}
@@ -376,6 +413,7 @@ const styles = {
   finalName: { fontSize: '13px', fontWeight: 700, color: '#f8f8f2' },
   finalScore: { fontSize: '32px', fontWeight: 700 },
   vsText: { fontSize: '20px', fontWeight: 700, color: '#f92672' },
+  matchTimeRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#75715e', marginBottom: '16px' },
   winnerMsg: { textAlign: 'center', fontSize: '13px', fontStyle: 'italic', padding: '12px', background: '#272822', border: '2px solid #3e3d32' },
 
   actionsRow: { display: 'flex', gap: '12px' },

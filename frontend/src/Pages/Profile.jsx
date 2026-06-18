@@ -166,7 +166,17 @@ export default function Profile() {
                                 )}
                             </div>
                         </div>
-
+                        {/* Admin access — only for admins */}
+                        {user?.role === 'admin' && (
+                            <button
+                                style={styles.adminBtn}
+                                onClick={() => navigate('/admin')}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#fd971f'; e.currentTarget.style.color = '#272822'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#fd971f'; }}
+                            >
+                                ⚙ ADMIN PANEL
+                            </button>
+                        )}
                         {/* Logout */}
                         <button style={styles.logoutBtn} onClick={handleLogout}>
                             logout()
@@ -253,7 +263,7 @@ const styles = {
     tooltip: { position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#1e1f1a', border: '2px solid', color: '#f8f8f2', fontSize: '10px', fontWeight: 400, letterSpacing: '0.5px', textTransform: 'none', padding: '6px 10px', width: 'max-content', maxWidth: '180px', boxShadow: '3px 3px 0 #3e3d32', zIndex: 10, pointerEvents: 'none', },
     emptyTag: { fontSize: '11px', color: '#75715e', fontStyle: 'italic' },
     emptyTag: { fontSize: '11px', color: '#75715e', fontStyle: 'italic' },
-
+    adminBtn: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#fd971f', border: '2px solid #fd971f', padding: '10px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', width: '100%', transition: 'all 0.15s' },
     logoutBtn: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '2px solid #f92672', padding: '10px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', width: '100%' },
 
     rightCol: { background: '#1e1f1a', border: '3px solid #75715e', padding: '20px', boxShadow: '4px 4px 0 #3e3d32' },
