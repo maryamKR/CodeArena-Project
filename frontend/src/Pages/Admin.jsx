@@ -18,7 +18,6 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const t = getThemeColors(theme);
 
