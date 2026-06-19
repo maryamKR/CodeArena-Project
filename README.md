@@ -31,6 +31,7 @@ The platform features solo quizzes, daily challenges with streak bonuses, direct
 | **1v1 Arena** | Challenge a friend directly or queue for random matchmaking |
 | **Real-Time Duels** | Both players answer the same questions simultaneously with live opponent progress bars |
 | **XP & Ranking System** | XP calculated from correct answers × difficulty multiplier × speed bonus → automatic rank progression |
+| **Badge System** | Earn performance based achievements during quizzes |
 | **Leaderboard** | Global leaderboard filterable by category and difficulty |
 | **Hall of Fame** | Top 10 all-time players |
 | **User Profiles** | Per-category stats, quiz history, badges, and rank display |
@@ -143,7 +144,7 @@ CodeArena-Project/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/CodeArena-Project.git
+git clone https://github.com/maryamKR/CodeArena-Project.git
 cd CodeArena-Project
 ```
 
@@ -241,7 +242,21 @@ The full API documentation is available at [`backend/docs/API.md`](backend/docs/
 | Expert | 5,000 |
 | Master | 10,000 |
 
----
+### 🏅 Badge System
+
+Players unlock exclusive profile achievements automatically upon meeting specific gameplay or milestone thresholds verified by the score evaluation engine.
+
+| Badge Name | Unlock Rule / Criteria |
+| :---: | :--- | :--- |
+| **First Blood** | Completed your very first quiz arena matchup. |
+| **Perfect Score** | Answered all 10 questions correctly in a single quiz. |
+| **Speed Demon** | Finished a quiz with 70% or more of the total time limit remaining. |
+| **10 Wins** | Total accrued quiz count reaches or exceeds 10 games played. |
+| **Centurion** | Reached a lifetime milestone of 100 total XP. |
+| **XP Master** | Reached a legendary milestone of 1,000 total XP. |
+| **Streak 3** | Maintained an active daily quiz streak for 3 consecutive days. |
+| **Streak 7** | Maintained an active daily quiz streak for 7 consecutive days. |
+
 
 ##  Testing
 
