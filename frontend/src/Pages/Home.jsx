@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import { useTheme } from '../Context/ThemeContext';
 import { getThemeColors } from '../constants/theme';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import api from '../api/axios';
 
 const CATEGORIES = [
@@ -50,7 +51,6 @@ const RECENT_ACTIVITY = [
   { tag: 'PY · EASY', color: '#66d9e8', score: '10/10', xp: 60, when: '2 days ago' },
 ];
 
-// helper: swap bright yellow/green for their dark-mode-safe versions
 const themeColor = (hex, t) => {
   if (hex === '#e6db74') return t.yellow;
   if (hex === '#a6e22e') return t.green;
@@ -62,11 +62,15 @@ export default function Home() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const t = getThemeColors(theme);
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const isTablet = bp === 'tablet';
 
   const [selectedCat, setSelectedCat] = useState('js');
   const [showAllCats, setShowAllCats] = useState(false);
   const [daily, setDaily] = useState(null);
   const [resetsIn, setResetsIn] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const visibleLinks = NAV_LINKS.filter(link => !link.authOnly || user);
   const stats = user ? USER_STATS : GLOBAL_STATS;
@@ -104,33 +108,44 @@ export default function Home() {
     <div style={{ ...styles.page, background: t.pageBg }}>
 
       {/* Navbar */}
-      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
+      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
           <span style={styles.logoName}>CODE</span>
           <span style={styles.bracket}>]</span>
           {' '}ARENA
         </div>
-        <div style={styles.navLinks}>
-          {visibleLinks.map((link, i) => (
-            <a
-            
-              key={link.label}
-              onClick={() => navigate(link.path)}
-              style={{
-                ...styles.navLink,
-                borderColor: t.border,
-                color: t.textMuted,
-                ...(i === 0 ? { ...styles.navLinkActive } : {}),
-                ...(i === visibleLinks.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
-                cursor: 'pointer',
-              }}
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
+
+        {/* Desktop/tablet nav links */}
+        {!isMobile && (
+          <div style={styles.navLinks}>
+            {visibleLinks.map((link, i) => (
+              <a
+              
+                key={link.label}
+                onClick={() => navigate(link.path)}
+                style={{
+                  ...styles.navLink,
+                  borderColor: t.border,
+                  color: t.textMuted,
+                  ...(i === 0 ? { ...styles.navLinkActive } : {}),
+                  ...(i === visibleLinks.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
+                  cursor: 'pointer',
+                }}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
+
         <div style={styles.navRight}>
+          {/* Hamburger — mobile only */}
+          {isMobile && (
+            <button style={{ ...styles.hamburger, borderColor: t.border, color: t.textMuted }} onClick={() => setMenuOpen(m => !m)}>
+              {menuOpen ? '✕' : '☰'}
+            </button>
+          )}
           <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
             {t.isLight ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
@@ -151,21 +166,42 @@ export default function Home() {
                 </svg>
                 {user.totalXP || 0} XP
               </div>
-              <button onClick={async () => { await logout(); }} style={styles.logoutBtn}>logout()</button>
+              {!isMobile && <button onClick={async () => { await logout(); }} style={styles.logoutBtn}>logout()</button>}
             </>
           ) : (
             <>
               <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
-              <button onClick={() => navigate('/register')} style={styles.registerBtn}>register()</button>
+              {!isMobile && <button onClick={() => navigate('/register')} style={styles.registerBtn}>register()</button>}
             </>
           )}
         </div>
+
+        {/* Mobile dropdown menu */}
+        {isMobile && menuOpen && (
+          <div style={{ ...styles.mobileMenu, background: t.navBg, borderTopColor: t.border }}>
+            {visibleLinks.map((link) => (
+              <a
+              
+                key={link.label}
+                onClick={() => { navigate(link.path); setMenuOpen(false); }}
+                style={{ ...styles.mobileMenuItem, color: t.textMuted, borderBottomColor: t.borderLight }}
+              >
+                {link.label}
+              </a>
+            ))}
+            {user && (
+              <a onClick={async () => { await logout(); setMenuOpen(false); }} style={{ ...styles.mobileMenuItem, color: '#f92672', borderBottomColor: t.borderLight }}>
+                logout()
+              </a>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
-      <div style={{ ...styles.hero, borderBottomColor: t.borderLight }}>
+      <div style={{ ...styles.hero, borderBottomColor: t.borderLight, padding: isMobile ? '24px 16px 20px' : '36px 24px 24px' }}>
         <div style={{ ...styles.heroTag, background: t.tagBg, color: t.textMuted }}>{'// select_category'}</div>
-        <h1 style={{ ...styles.heroTitle, color: t.text }}>
+        <h1 style={{ ...styles.heroTitle, color: t.text, fontSize: isMobile ? '22px' : isTablet ? '28px' : '36px' }}>
           <span style={styles.kw}>const</span>{' '}
           arena <span style={styles.op}>=</span>{' '}
           <span style={styles.fn}>play</span>
@@ -178,11 +214,11 @@ export default function Home() {
 
       {/* Sign-up CTA — logged-out only */}
       {!user && (
-        <div style={styles.ctaWrap}>
-          <div style={styles.ctaPanel}>
+        <div style={{ ...styles.ctaWrap, padding: isMobile ? '16px' : '20px 24px 0' }}>
+          <div style={{ ...styles.ctaPanel, flexDirection: isMobile ? 'column' : 'row' }}>
             <div>
               <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// new_here'}</div>
-              <div style={{ ...styles.ctaText, color: t.text }}>Sign up to save XP, climb the leaderboard & keep your streak.</div>
+              <div style={{ ...styles.ctaText, color: t.text, fontSize: isMobile ? '12px' : '14px' }}>Sign up to save XP, climb the leaderboard & keep your streak.</div>
             </div>
             <div style={styles.ctaBtns}>
               <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
@@ -193,7 +229,7 @@ export default function Home() {
       )}
 
       {/* Categories */}
-      <div style={{ ...styles.catsGrid, borderColor: t.border }}>
+      <div style={{ ...styles.catsGrid, borderColor: t.border, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)' }}>
         {visibleCats.map((cat, i, arr) => (
           <div
             key={cat.id}
@@ -202,17 +238,17 @@ export default function Home() {
               ...styles.catCard,
               background: t.cardAltBg,
               borderTop: `4px solid ${themeColor(cat.color, t)}`,
-              borderRight: i < arr.length - 1 ? `3px solid ${t.border}` : 'none',
+              borderRight: isMobile ? ((i % 2 === 0) ? `3px solid ${t.border}` : 'none') : (i < arr.length - 1 ? `3px solid ${t.border}` : 'none'),
               borderBottomColor: t.border,
+              padding: isMobile ? '14px' : '18px 20px',
               ...(selectedCat === cat.id ? { background: t.isLight ? '#c5c2b5' : '#3e3d32', outline: `2px solid ${themeColor(cat.color, t)}`, outlineOffset: '-2px' } : {}),
             }}
             onMouseEnter={e => e.currentTarget.style.background = t.isLight ? '#c5c2b5' : '#3e3d32'}
             onMouseLeave={e => e.currentTarget.style.background = selectedCat === cat.id ? (t.isLight ? '#c5c2b5' : '#3e3d32') : t.cardAltBg}
           >
-            <div style={{ ...styles.catIcon, color: themeColor(cat.color, t) }}>{cat.short}</div>
+            <div style={{ ...styles.catIcon, color: themeColor(cat.color, t), fontSize: isMobile ? '18px' : '22px' }}>{cat.short}</div>
             <div style={{ ...styles.catName, color: t.text }}>{cat.label}</div>
             <div style={{ ...styles.catCount, color: t.textMuted }}>{cat.count} questions</div>
-
             {user && (
               <>
                 <div style={{ ...styles.catBarTrack, background: t.isLight ? '#b8b5a8' : '#1e1f1a', borderColor: t.borderLight }}>
@@ -240,27 +276,27 @@ export default function Home() {
       )}
 
       {/* Stats */}
-      <div style={{ ...styles.statsGrid, borderBottomColor: t.border }}>
+      <div style={{ ...styles.statsGrid, borderBottomColor: t.border, gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)' }}>
         {stats.map((stat, i) => (
-          <div key={stat.label} style={{ ...styles.statCard, background: t.pageBg, borderRight: i < 2 ? `3px solid ${t.border}` : 'none' }}>
-            <div style={{ ...styles.statVal, color: themeColor(stat.color, t) }}>{stat.val}</div>
+          <div key={stat.label} style={{ ...styles.statCard, background: t.pageBg, borderRight: isMobile ? 'none' : (i < 2 ? `3px solid ${t.border}` : 'none'), borderBottom: isMobile && i < stats.length - 1 ? `2px solid ${t.border}` : 'none' }}>
+            <div style={{ ...styles.statVal, color: themeColor(stat.color, t), fontSize: isMobile ? '22px' : '28px' }}>{stat.val}</div>
             <div style={{ ...styles.statLabel, color: t.textMuted }}>{stat.label}</div>
           </div>
         ))}
       </div>
 
       {/* Start */}
-      <div style={{ ...styles.startRow, background: t.pageBg }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ ...styles.startRow, background: t.pageBg, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '12px' : '0', padding: isMobile ? '16px' : '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: isMobile ? '100%' : 'auto' }}>
           <button
-            style={{ ...styles.startBtn, boxShadow: t.shadow }}
+            style={{ ...styles.startBtn, boxShadow: t.shadow, width: isMobile ? '100%' : 'auto', fontSize: isMobile ? '12px' : '14px' }}
             onClick={handleStartQuiz}
             onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
             onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
           >
             ▶ START QUIZ
           </button>
-          {!user && (
+          {!user && !isMobile && (
             <span style={{ ...styles.loginNote, color: t.textMuted }}>{'// login required to play & save score'}</span>
           )}
         </div>
@@ -275,15 +311,15 @@ export default function Home() {
       </div>
 
       {/* Daily challenge + Top players */}
-      <div style={styles.panelsGrid}>
+      <div style={{ ...styles.panelsGrid, gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', padding: isMobile ? '4px 16px 0' : '4px 24px 0' }}>
 
         {/* Daily challenge */}
         <div style={{ ...styles.panel, background: t.cardAltBg, borderColor: t.border }}>
           <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// daily_challenge'}</div>
           {daily ? (
             <>
-              <div style={{ ...styles.dcTitle, color: t.text }}>{daily.category?.name} challenge</div>
-              <div style={styles.dcTags}>
+              <div style={{ ...styles.dcTitle, color: t.text, fontSize: isMobile ? '14px' : '17px' }}>{daily.category?.name} challenge</div>
+              <div style={{ ...styles.dcTags, flexWrap: 'wrap' }}>
                 <span style={{ ...styles.dcPill, color: daily.category?.color || '#e6db74', borderColor: daily.category?.color || '#e6db74' }}>
                   {daily.category?.slug?.toUpperCase()}
                 </span>
@@ -292,7 +328,7 @@ export default function Home() {
                 </span>
                 <span style={{ ...styles.dcBonus, color: t.green }}>+{daily.bonusXP} BONUS XP</span>
               </div>
-              <div style={styles.dcFooter}>
+              <div style={{ ...styles.dcFooter, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '0' }}>
                 <span style={{ ...styles.dcTimer, color: t.textMuted }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
                     <circle cx="12" cy="12" r="9" />
@@ -358,10 +394,10 @@ export default function Home() {
 
       {/* Recent activity — logged-in only */}
       {user && (
-        <div style={styles.activityWrap}>
+        <div style={{ ...styles.activityWrap, padding: isMobile ? '16px' : '16px 24px 0' }}>
           <div style={{ ...styles.activityPanel, background: t.cardAltBg }}>
             <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// recent_activity'}</div>
-            <div style={styles.activityGrid}>
+            <div style={{ ...styles.activityGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)' }}>
               {RECENT_ACTIVITY.map((a) => (
                 <div key={a.tag + a.when} style={{ ...styles.activityCell, borderColor: t.borderLight }}>
                   <div style={{ ...styles.actTag, color: themeColor(a.color, t) }}>{a.tag}</div>
@@ -390,6 +426,9 @@ const styles = {
   navLinks: { display: 'flex' },
   navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
   navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+  hamburger: { fontFamily: "'Space Mono', monospace", fontSize: '18px', fontWeight: 700, background: 'transparent', border: '2px solid #75715e', padding: '4px 10px', cursor: 'pointer' },
+  mobileMenu: { width: '100%', borderTop: '2px solid #3e3d32', display: 'flex', flexDirection: 'column' },
+  mobileMenuItem: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, padding: '12px 16px', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer', textDecoration: 'none', borderBottom: '1px solid #3e3d32' },
   themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
   xpBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '4px 14px', boxShadow: '3px 3px 0 rgba(230,219,116,0.3)', display: 'flex', alignItems: 'center' },
   navRight: { display: 'flex', alignItems: 'center', gap: '8px' },

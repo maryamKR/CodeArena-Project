@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
 import { getThemeColors } from '../constants/theme';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import api from '../API/axios';
 
 const NAV_LINKS = [
@@ -35,12 +36,15 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
     const t = getThemeColors(theme);
+    const bp = useBreakpoint();
+    const isMobile = bp === 'mobile';
+    const isTablet = bp === 'tablet';
 
     const [history, setHistory] = useState([]);
     const [leaderboard, setLeaderboard] = useState([]);
     const [myRank, setMyRank] = useState(null);
+    const [menuOpen, setMenuOpen] = useState(false);
 
-    // Challenge-a-friend state
     const [showChallenge, setShowChallenge] = useState(false);
     const [opponent, setOpponent] = useState('');
     const [challengeMsg, setChallengeMsg] = useState(null);
@@ -54,7 +58,6 @@ export default function Dashboard() {
     const debounceRef = useRef(null);
     const searchWrapRef = useRef(null);
 
-    // Pending invites state
     const [invites, setInvites] = useState([]);
     const [invitesLoading, setInvitesLoading] = useState(true);
     const [actioningId, setActioningId] = useState(null);
@@ -100,11 +103,7 @@ export default function Dashboard() {
         setChallengeMsg(null);
         if (debounceRef.current) clearTimeout(debounceRef.current);
         const q = value.trim();
-        if (q.length < 3) {
-            setResults([]);
-            setShowDropdown(false);
-            return;
-        }
+        if (q.length < 3) { setResults([]); setShowDropdown(false); return; }
         debounceRef.current = setTimeout(async () => {
             setSearching(true);
             try {
@@ -112,140 +111,120 @@ export default function Dashboard() {
                 const list = (res.data.data || []).filter(u => u.username !== user?.username);
                 setResults(list);
                 setShowDropdown(true);
-            } catch {
-                setResults([]);
-                setShowDropdown(false);
-            } finally {
-                setSearching(false);
-            }
+            } catch { setResults([]); setShowDropdown(false); }
+            finally { setSearching(false); }
         }, 300);
     };
 
-    const pickOpponent = (username) => {
-        setOpponent(username);
-        setResults([]);
-        setShowDropdown(false);
-    };
+    const pickOpponent = (username) => { setOpponent(username); setResults([]); setShowDropdown(false); };
 
     const handleSendChallenge = async () => {
         const name = opponent.trim();
-        if (name.length < 3) {
-            setChallengeMsg({ type: 'error', text: 'Username must be at least 3 characters' });
-            return;
-        }
-        setSending(true);
-        setChallengeMsg(null);
-        setShowDropdown(false);
+        if (name.length < 3) { setChallengeMsg({ type: 'error', text: 'Username must be at least 3 characters' }); return; }
+        setSending(true); setChallengeMsg(null); setShowDropdown(false);
         try {
             const body = { receiverUsername: name, difficulty: chDifficulty };
             if (chCategory) body.category = chCategory;
             await api.post('/challenges', body);
             setChallengeMsg({ type: 'success', text: `Challenge sent to ${name}!` });
-            setOpponent('');
-            setResults([]);
+            setOpponent(''); setResults([]);
         } catch (err) {
             const status = err?.response?.status;
-            const text =
-                status === 404 ? 'No player found with that username' :
-                    status === 409 ? 'You already have a pending challenge with this player' :
-                        status === 400 ? 'You cannot challenge yourself' :
-                            status === 429 ? 'Too many challenges — try again later' :
-                                'Failed to send challenge';
+            const text = status === 404 ? 'No player found with that username' : status === 409 ? 'You already have a pending challenge with this player' : status === 400 ? 'You cannot challenge yourself' : status === 429 ? 'Too many challenges — try again later' : 'Failed to send challenge';
             setChallengeMsg({ type: 'error', text });
-        } finally {
-            setSending(false);
-        }
+        } finally { setSending(false); }
     };
 
     const handleAcceptInvite = async (inv) => {
         setActioningId(inv.id);
         try {
             await api.put(`/challenges/${inv.id}/accept`);
-            navigate(`/match/${inv.id}`, {
-                state: {
-                    challengeId: inv.id,
-                    opponent: inv.sender,
-                    category: inv.category?.slug,
-                    difficulty: inv.difficulty,
-                },
-            });
-        } catch {
-            setInvites(prev => prev.filter(i => i.id !== inv.id));
-            setActioningId(null);
-        }
+            navigate(`/match/${inv.id}`, { state: { challengeId: inv.id, opponent: inv.sender, category: inv.category?.slug, difficulty: inv.difficulty } });
+        } catch { setInvites(prev => prev.filter(i => i.id !== inv.id)); setActioningId(null); }
     };
 
     const handleDeclineInvite = async (inv) => {
         setActioningId(inv.id);
-        try {
-            await api.put(`/challenges/${inv.id}/decline`);
-        } catch {
-        } finally {
-            setInvites(prev => prev.filter(i => i.id !== inv.id));
-            setActioningId(null);
-        }
+        try { await api.put(`/challenges/${inv.id}/decline`); } catch { }
+        finally { setInvites(prev => prev.filter(i => i.id !== inv.id)); setActioningId(null); }
     };
 
     return (
         <div style={{ ...styles.page, background: t.pageBg }}>
 
             {/* Navbar */}
-            <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
+            <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border, flexWrap: isMobile ? 'wrap' : 'nowrap', padding: isMobile ? '12px 16px' : '12px 24px' }}>
                 <div style={styles.logo}>
                     <span style={styles.bracket}>[</span>
                     <span style={styles.logoName}>CODE</span>
                     <span style={styles.bracket}>]</span>
                     {' '}ARENA
                 </div>
-                <div style={styles.navLinks}>
-                    {NAV_LINKS.map((link, i) => (
-                        <a
-                            key={link.label}
-                            onClick={() => navigate(link.path)}
-                            style={{
-                                ...styles.navLink,
-                                borderColor: t.border,
-                                color: t.textMuted,
-                                ...(i === 1 ? styles.navLinkActive : {}),
-                                ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {link.label}
-                        </a>
-                    ))}
-                </div>
+
+                {!isMobile && (
+                    <div style={styles.navLinks}>
+                        {NAV_LINKS.map((link, i) => (
+                            <a
+                            
+                                key={link.label}
+                                onClick={() => navigate(link.path)}
+                                style={{
+                                    ...styles.navLink,
+                                    borderColor: t.border,
+                                    color: t.textMuted,
+                                    ...(i === 1 ? styles.navLinkActive : {}),
+                                    ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {link.label}
+                            </a>
+                        ))}
+                    </div>
+                )}
+
                 <div style={styles.navRight}>
+                    {isMobile && (
+                        <button style={{ ...styles.hamburger, borderColor: t.border, color: t.textMuted }} onClick={() => setMenuOpen(m => !m)}>
+                            {menuOpen ? '✕' : '☰'}
+                        </button>
+                    )}
                     <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
                         {t.isLight ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                            </svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
                         ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
-                                <circle cx="12" cy="12" r="4" />
-                                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
-                            </svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" /></svg>
                         )}
                     </button>
-                    <div style={{ ...styles.userBadge, color: t.green, borderColor: t.green }}>{user?.username || 'player'}</div>
+                    {!isMobile && <div style={{ ...styles.userBadge, color: t.green, borderColor: t.green }}>{user?.username || 'player'}</div>}
                     <div style={styles.xpBadge}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                        </svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#272822" style={{ marginRight: '6px', verticalAlign: 'middle' }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                         {user?.totalXP || 0} XP
                     </div>
-                    <button style={styles.logoutBtn} onClick={handleLogout}>logout()</button>
+                    {!isMobile && <button style={styles.logoutBtn} onClick={handleLogout}>logout()</button>}
                 </div>
+
+                {isMobile && menuOpen && (
+                    <div style={{ ...styles.mobileMenu, background: t.navBg, borderTopColor: t.border }}>
+                        {NAV_LINKS.map((link) => (
+                            <a key={link.label} onClick={() => { navigate(link.path); setMenuOpen(false); }} style={{ ...styles.mobileMenuItem, color: t.textMuted, borderBottomColor: t.borderLight }}>
+                                {link.label}
+                            </a>
+                        ))}
+                        <a onClick={async () => { await handleLogout(); setMenuOpen(false); }} style={{ ...styles.mobileMenuItem, color: '#f92672', borderBottomColor: t.borderLight }}>
+                            logout()
+                        </a>
+                    </div>
+                )}
             </nav>
 
-            <div style={styles.content}>
+            <div style={{ ...styles.content, padding: isMobile ? '20px 16px' : '28px 24px' }}>
 
                 {/* Welcome */}
-                <div style={{ ...styles.welcomeRow, borderBottomColor: t.borderLight }}>
+                <div style={{ ...styles.welcomeRow, borderBottomColor: t.borderLight, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '12px' : '0' }}>
                     <div>
                         <div style={{ ...styles.welcomeTag, background: t.tagBg, color: t.textMuted }}>{'// welcome_back'}</div>
-                        <h1 style={{ ...styles.welcomeTitle, color: t.text }}>
+                        <h1 style={{ ...styles.welcomeTitle, color: t.text, fontSize: isMobile ? '20px' : '28px' }}>
                             <span style={styles.kw}>const</span> player{' '}
                             <span style={styles.op}>=</span>{' '}
                             <span style={{ ...styles.str, color: t.yellow }}>"{user?.username || 'coder'}"</span>
@@ -258,7 +237,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Stats */}
-                <div style={{ ...styles.statsRow, borderColor: t.border }}>
+                <div style={{ ...styles.statsRow, borderColor: t.border, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)' }}>
                     {[
                         { label: 'Total XP', val: user?.totalXP || 0, color: '#e6db74' },
                         { label: 'Quizzes Played', val: user?.quizzesPlayed || 0, color: '#a6e22e' },
@@ -266,8 +245,8 @@ export default function Dashboard() {
                         { label: 'Badges', val: user?.badges?.length || 0, color: '#f92672' },
                         { label: 'Streak', val: `${user?.streak || 0} days`, color: '#e6db74' },
                     ].map((stat, i) => (
-                        <div key={stat.label} style={{ ...styles.statCard, background: t.cardBg, borderRight: i < 4 ? `3px solid ${t.border}` : 'none' }}>
-                            <div style={{ ...styles.statVal, color: themeColor(stat.color, t) }}>{stat.val}</div>
+                        <div key={stat.label} style={{ ...styles.statCard, background: t.cardBg, borderRight: `2px solid ${t.border}`, borderBottom: `2px solid ${t.border}` }}>
+                            <div style={{ ...styles.statVal, color: themeColor(stat.color, t), fontSize: isMobile ? '20px' : '26px' }}>{stat.val}</div>
                             <div style={{ ...styles.statLabel, color: t.textMuted }}>{stat.label}</div>
                         </div>
                     ))}
@@ -282,58 +261,37 @@ export default function Dashboard() {
                         <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_pending_challenges'}</div>
                     ) : (
                         invites.map((inv, i) => (
-                            <div key={inv.id} style={{ ...styles.inviteRow, borderBottom: i < invites.length - 1 ? `2px solid ${t.borderLight}` : 'none' }}>
+                            <div key={inv.id} style={{ ...styles.inviteRow, borderBottom: i < invites.length - 1 ? `2px solid ${t.borderLight}` : 'none', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center' }}>
                                 <div style={styles.inviteLeft}>
                                     <span style={{ ...styles.inviteFrom, color: t.text }}>
                                         {inv.sender?.isOnline && <span style={styles.onlineDot} />}
                                         {inv.sender?.username || 'someone'}
                                     </span>
                                     <span style={{ ...styles.inviteMeta, color: t.textMuted }}>
-                                        challenges you
-                                        {inv.category?.name ? ` · ${inv.category.name}` : ''}
-                                        {inv.difficulty ? ` · ${inv.difficulty}` : ''}
+                                        challenges you{inv.category?.name ? ` · ${inv.category.name}` : ''}{inv.difficulty ? ` · ${inv.difficulty}` : ''}
                                     </span>
-                                    {inv.message && <span style={{ ...styles.inviteMessage, color: t.yellow }}>"{inv.message}"</span>}
                                 </div>
-                                <div style={styles.inviteBtns}>
-                                    <button
-                                        style={{ ...styles.acceptBtn, opacity: actioningId === inv.id ? 0.6 : 1 }}
-                                        onClick={() => handleAcceptInvite(inv)}
-                                        disabled={actioningId === inv.id}
-                                    >
-                                        ✓ ACCEPT
-                                    </button>
-                                    <button
-                                        style={{ ...styles.declineBtn, opacity: actioningId === inv.id ? 0.6 : 1 }}
-                                        onClick={() => handleDeclineInvite(inv)}
-                                        disabled={actioningId === inv.id}
-                                    >
-                                        ✕ DECLINE
-                                    </button>
+                                <div style={{ ...styles.inviteBtns, width: isMobile ? '100%' : 'auto', marginTop: isMobile ? '8px' : '0' }}>
+                                    <button style={{ ...styles.acceptBtn, flex: isMobile ? 1 : 'none', opacity: actioningId === inv.id ? 0.6 : 1 }} onClick={() => handleAcceptInvite(inv)} disabled={actioningId === inv.id}>✓ ACCEPT</button>
+                                    <button style={{ ...styles.declineBtn, flex: isMobile ? 1 : 'none', opacity: actioningId === inv.id ? 0.6 : 1 }} onClick={() => handleDeclineInvite(inv)} disabled={actioningId === inv.id}>✕ DECLINE</button>
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
 
-                <div style={styles.mainGrid}>
+                <div style={{ ...styles.mainGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 300px' }}>
 
                     {/* Left */}
                     <div>
-                        {/* Quick actions */}
                         <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// quick_actions'}</div>
-                        <div style={styles.actionsGrid}>
+                        <div style={{ ...styles.actionsGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
 
                             {/* Solo */}
                             <div style={{ ...styles.actionCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow, borderTop: `4px solid ${t.green}` }}>
                                 <div style={{ ...styles.actionTitle, color: t.green }}>SOLO QUIZ</div>
-                                <div style={{ ...styles.actionSub, color: t.textMuted }}>Practice at your own pace. Pick a category and go.</div>
-                                <button
-                                    style={styles.soloBtn}
-                                    onClick={() => navigate('/quiz', { state: { mode: 'solo' } })}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
-                                >
+                                <div style={{ ...styles.actionSub, color: t.textMuted }}>Practice at your own pace.</div>
+                                <button style={styles.soloBtn} onClick={() => navigate('/quiz', { state: { mode: 'solo' } })} onMouseEnter={e => e.currentTarget.style.background = '#8dca25'} onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}>
                                     ▶ Start Solo
                                 </button>
                             </div>
@@ -343,12 +301,7 @@ export default function Dashboard() {
                                 <div style={{ ...styles.actionTitle, color: '#f92672' }}>1v1 CHALLENGE</div>
                                 <div style={{ ...styles.actionSub, color: t.textMuted }}>Battle an opponent in real-time.</div>
                                 <div style={styles.challengeBtns}>
-                                    <button
-                                        style={styles.randomBtn}
-                                        onClick={() => navigate('/quiz', { state: { mode: '1v1' } })}
-                                        onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                                    >
+                                    <button style={styles.randomBtn} onClick={() => navigate('/quiz', { state: { mode: '1v1' } })} onMouseEnter={e => e.currentTarget.style.opacity = '0.85'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                                         ⚔ Find Random Opponent
                                     </button>
                                     <div style={styles.orDivider}>
@@ -356,95 +309,43 @@ export default function Dashboard() {
                                         <span style={{ ...styles.orText, color: t.textMuted }}>OR</span>
                                         <div style={{ ...styles.orLine, background: t.borderLight }}></div>
                                     </div>
-
                                     {!showChallenge ? (
-                                        <button
-                                            style={styles.friendBtn}
-                                            onClick={() => { setShowChallenge(true); setChallengeMsg(null); }}
-                                            onMouseEnter={e => { e.currentTarget.style.background = '#f92672'; e.currentTarget.style.color = '#f8f8f2'; }}
-                                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#f92672'; }}
-                                        >
+                                        <button style={styles.friendBtn} onClick={() => { setShowChallenge(true); setChallengeMsg(null); }} onMouseEnter={e => { e.currentTarget.style.background = '#f92672'; e.currentTarget.style.color = '#f8f8f2'; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#f92672'; }}>
                                             Challenge a Friend
                                         </button>
                                     ) : (
                                         <div style={styles.challengeFormCol}>
-                                            <div style={styles.challengeSelectRow}>
-                                                <select
-                                                    style={{ ...styles.challengeSelect, background: t.pageBg, borderColor: t.border, color: t.text }}
-                                                    value={chCategory}
-                                                    onChange={e => setChCategory(e.target.value)}
-                                                >
+                                            <div style={{ ...styles.challengeSelectRow, flexDirection: isMobile ? 'column' : 'row' }}>
+                                                <select style={{ ...styles.challengeSelect, background: t.pageBg, borderColor: t.border, color: t.text }} value={chCategory} onChange={e => setChCategory(e.target.value)}>
                                                     <option value="">any category</option>
-                                                    {categories.map(c => (
-                                                        <option key={c._id} value={c._id}>{c.name}</option>
-                                                    ))}
+                                                    {categories.map(c => (<option key={c._id} value={c._id}>{c.name}</option>))}
                                                 </select>
-                                                <select
-                                                    style={{ ...styles.challengeSelect, background: t.pageBg, borderColor: t.border, color: t.text }}
-                                                    value={chDifficulty}
-                                                    onChange={e => setChDifficulty(e.target.value)}
-                                                >
-                                                    <option value="Easy">Easy</option>
-                                                    <option value="Medium">Medium</option>
-                                                    <option value="Hard">Hard</option>
+                                                <select style={{ ...styles.challengeSelect, background: t.pageBg, borderColor: t.border, color: t.text }} value={chDifficulty} onChange={e => setChDifficulty(e.target.value)}>
+                                                    <option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option>
                                                 </select>
                                             </div>
                                             <div style={styles.challengeForm}>
                                                 <div style={styles.searchWrap} ref={searchWrapRef}>
-                                                    <input
-                                                        style={{ ...styles.challengeInput, background: t.pageBg, borderColor: t.border, color: t.text }}
-                                                        type="text"
-                                                        placeholder="opponent_username"
-                                                        value={opponent}
-                                                        onChange={e => handleOpponentChange(e.target.value)}
-                                                        onFocus={() => { if (results.length > 0) setShowDropdown(true); }}
-                                                        onKeyDown={e => e.key === 'Enter' && handleSendChallenge()}
-                                                        autoComplete="off"
-                                                        autoFocus
-                                                    />
+                                                    <input style={{ ...styles.challengeInput, background: t.pageBg, borderColor: t.border, color: t.text }} type="text" placeholder="opponent_username" value={opponent} onChange={e => handleOpponentChange(e.target.value)} onFocus={() => { if (results.length > 0) setShowDropdown(true); }} onKeyDown={e => e.key === 'Enter' && handleSendChallenge()} autoComplete="off" autoFocus />
                                                     {showDropdown && (
                                                         <div style={{ ...styles.dropdown, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
-                                                            {searching ? (
-                                                                <div style={{ ...styles.dropdownEmpty, color: t.textMuted }}>{'// searching...'}</div>
-                                                            ) : results.length === 0 ? (
-                                                                <div style={{ ...styles.dropdownEmpty, color: t.textMuted }}>{'// no_players_found'}</div>
-                                                            ) : (
-                                                                results.map((u) => (
-                                                                    <div
-                                                                        key={u._id}
-                                                                        style={{ ...styles.dropdownRow, borderBottomColor: t.borderLight }}
-                                                                        onClick={() => pickOpponent(u.username)}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = t.borderLight}
-                                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                                    >
-                                                                        <span style={{ ...styles.dropdownName, color: t.text }}>
-                                                                            {u.isOnline && <span style={styles.onlineDot} />}
-                                                                            {u.username}
-                                                                        </span>
-                                                                        <span style={{ ...styles.dropdownRank, color: t.textMuted }}>{u.rank}</span>
-                                                                    </div>
-                                                                ))
-                                                            )}
+                                                            {searching ? (<div style={{ ...styles.dropdownEmpty, color: t.textMuted }}>{'// searching...'}</div>
+                                                            ) : results.length === 0 ? (<div style={{ ...styles.dropdownEmpty, color: t.textMuted }}>{'// no_players_found'}</div>
+                                                            ) : (results.map((u) => (
+                                                                <div key={u._id} style={{ ...styles.dropdownRow, borderBottomColor: t.borderLight }} onClick={() => pickOpponent(u.username)} onMouseEnter={e => e.currentTarget.style.background = t.borderLight} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                    <span style={{ ...styles.dropdownName, color: t.text }}>{u.isOnline && <span style={styles.onlineDot} />}{u.username}</span>
+                                                                    <span style={{ ...styles.dropdownRank, color: t.textMuted }}>{u.rank}</span>
+                                                                </div>
+                                                            )))}
                                                         </div>
                                                     )}
                                                 </div>
-                                                <button
-                                                    style={{ ...styles.challengeSendBtn, opacity: sending ? 0.6 : 1 }}
-                                                    onClick={handleSendChallenge}
-                                                    disabled={sending}
-                                                >
-                                                    {sending ? '...' : 'SEND'}
-                                                </button>
+                                                <button style={{ ...styles.challengeSendBtn, opacity: sending ? 0.6 : 1 }} onClick={handleSendChallenge} disabled={sending}>{sending ? '...' : 'SEND'}</button>
                                             </div>
                                         </div>
                                     )}
-
                                     {challengeMsg && (
-                                        <div style={{
-                                            ...styles.challengeMsg,
-                                            color: challengeMsg.type === 'success' ? t.green : '#f92672',
-                                            borderColor: challengeMsg.type === 'success' ? t.green : '#f92672',
-                                        }}>
+                                        <div style={{ ...styles.challengeMsg, color: challengeMsg.type === 'success' ? t.green : '#f92672', borderColor: challengeMsg.type === 'success' ? t.green : '#f92672' }}>
                                             {challengeMsg.text}
                                         </div>
                                     )}
@@ -460,10 +361,10 @@ export default function Dashboard() {
                                 <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_recent_activity — play a quiz to see your history!'}</div>
                             ) : (
                                 history.map((h, i) => (
-                                    <div key={i} style={{ ...styles.activityRow, borderBottom: i < history.length - 1 ? `1px solid ${t.borderLight}` : 'none' }}>
+                                    <div key={i} style={{ ...styles.activityRow, gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', borderBottom: i < history.length - 1 ? `1px solid ${t.borderLight}` : 'none' }}>
                                         <div style={{ color: '#66d9e8', fontSize: '12px', textAlign: 'left' }}>{h.category?.name || '?'}</div>
-                                        <div style={{ color: t.textMuted, fontSize: '11px', textAlign: 'center' }}>{h.difficulty}</div>
-                                        <div style={{ color: t.green, fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{h.correctAnswers}/10</div>
+                                        <div style={{ color: t.textMuted, fontSize: '11px', textAlign: isMobile ? 'right' : 'center' }}>{h.difficulty}</div>
+                                        <div style={{ color: t.green, fontWeight: 700, fontSize: '12px', textAlign: isMobile ? 'left' : 'center' }}>{h.correctAnswers}/10</div>
                                         <div style={{ color: t.yellow, fontSize: '11px', textAlign: 'right' }}>+{h.earnedXP} XP</div>
                                     </div>
                                 ))
@@ -473,8 +374,6 @@ export default function Dashboard() {
 
                     {/* Right */}
                     <div style={styles.rightCol}>
-
-                        {/* Leaderboard */}
                         <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// top_players'}</div>
                         <div style={{ ...styles.leaderCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
                             {leaderboard.map((p, i) => (
@@ -482,16 +381,13 @@ export default function Dashboard() {
                                     <div style={{ ...styles.leaderRank, color: t.yellow }}>#{i + 1}</div>
                                     <div style={{ ...styles.leaderName, color: t.text }}>{p.username}</div>
                                     <div style={{ ...styles.leaderXP, color: t.yellow }}>
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill={t.yellow} style={{ marginRight: '4px', verticalAlign: 'middle' }}>
-                                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                                        </svg>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill={t.yellow} style={{ marginRight: '4px', verticalAlign: 'middle' }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                                         {p.totalXP}
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Badges */}
                         <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted, marginTop: '16px' }}>{'// badges'}</div>
                         <div style={{ ...styles.badgesCard, background: t.cardBg, borderColor: t.border }}>
                             {user?.badges?.length > 0 ? (
@@ -504,7 +400,6 @@ export default function Dashboard() {
                                 <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// no_badges_yet'}</div>
                             )}
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -522,6 +417,9 @@ const styles = {
     navLinks: { display: 'flex' },
     navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
     navLinkActive: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
+    hamburger: { fontFamily: "'Space Mono', monospace", fontSize: '18px', fontWeight: 700, background: 'transparent', border: '2px solid #75715e', padding: '4px 10px', cursor: 'pointer' },
+    mobileMenu: { width: '100%', borderTop: '2px solid #3e3d32', display: 'flex', flexDirection: 'column' },
+    mobileMenuItem: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, padding: '12px 16px', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer', textDecoration: 'none', borderBottom: '1px solid #3e3d32' },
     themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
     navRight: { display: 'flex', alignItems: 'center', gap: '10px' },
     userBadge: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#a6e22e', border: '2px solid #a6e22e', padding: '4px 12px' },
