@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import { useTheme } from '../Context/ThemeContext';
-import { getThemeColors } from '../constants/theme';
+import { getThemeColors } from '../Constants/theme';
 
 const themeColor = (hex, t) => {
   if (hex === '#e6db74') return t.yellow;
