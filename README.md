@@ -247,7 +247,7 @@ The full API documentation is available at [`backend/docs/API.md`](backend/docs/
 Players unlock exclusive profile achievements automatically upon meeting specific gameplay or milestone thresholds verified by the score evaluation engine.
 
 | Badge Name | Unlock Rule / Criteria |
-| :---: | :--- | :--- |
+| --- | --- |
 | **First Blood** | Completed your very first quiz arena matchup. |
 | **Perfect Score** | Answered all 10 questions correctly in a single quiz. |
 | **Speed Demon** | Finished a quiz with 70% or more of the total time limit remaining. |
