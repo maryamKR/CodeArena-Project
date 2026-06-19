@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
-import { getThemeColors } from '../constants/theme';
+import { getThemeColors } from '../Constants/theme';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import api from '../API/axios';
 
