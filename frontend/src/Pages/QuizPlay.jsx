@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
-import { getThemeColors } from '../constants/theme';
+import { getThemeColors } from '../Constants/theme';
 import api from '../api/axios';
 
 const NAV_LINKS = [

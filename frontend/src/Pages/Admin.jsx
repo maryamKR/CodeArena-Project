@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import { useTheme } from '../Context/ThemeContext';
-import { getThemeColors } from '../constants/theme';
-import api from '../api/axios';
+import { getThemeColors } from '../Constants/theme';
+import api from '../API/axios';
 
 const NAV_LINKS = [
   { label: 'Home', path: '/' },

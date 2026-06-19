@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import { useTheme } from '../Context/ThemeContext';
-import { getThemeColors } from '../constants/theme';
+import { getThemeColors } from '../Constants/theme';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-import api from '../api/axios';
+import api from '../API/axios';
 
 const CATEGORIES = [
   { id: 'js', label: 'JavaScript', short: 'JS', count: 142, solved: 34, color: '#e6db74' },
