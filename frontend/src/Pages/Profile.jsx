@@ -46,7 +46,6 @@ export default function Profile() {
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const t = getThemeColors(theme);
-
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [myRank, setMyRank] = useState(null);

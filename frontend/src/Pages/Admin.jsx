@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import api from '../api/axios';
 
 const NAV_LINKS = [
@@ -17,11 +19,13 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 export default function Admin() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const t = getThemeColors(theme);
+
   const [tab, setTab] = useState('Questions');
   const [categories, setCategories] = useState([]);
-  const [msg, setMsg] = useState(null); // { type, text }
+  const [msg, setMsg] = useState(null);
 
-  // Questions form
   const [qText, setQText] = useState('');
   const [qAnswer, setQAnswer] = useState(true);
   const [qCategory, setQCategory] = useState('');
@@ -29,20 +33,17 @@ export default function Admin() {
   const [qSaving, setQSaving] = useState(false);
   const [deleteId, setDeleteId] = useState('');
 
-  // Category form
   const [cName, setCName] = useState('');
   const [cSlug, setCSlug] = useState('');
   const [cColor, setCColor] = useState('#a6e22e');
   const [cSaving, setCSaving] = useState(false);
 
-  // Daily challenge form
   const [dCategory, setDCategory] = useState('');
   const [dDifficulty, setDDifficulty] = useState('Easy');
   const [dBonus, setDBonus] = useState(50);
   const [dDate, setDDate] = useState('');
   const [dSaving, setDSaving] = useState(false);
 
-  // Global history
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -52,7 +53,6 @@ export default function Admin() {
       .catch(() => setCategories([]));
   }, []);
 
-  // load global history when that tab opens
   useEffect(() => {
     if (tab !== 'Global History') return;
     setHistoryLoading(true);
@@ -136,10 +136,10 @@ export default function Admin() {
   };
 
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, background: t.pageBg }}>
 
       {/* Navbar */}
-      <nav style={styles.nav}>
+      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
           <span style={styles.logoName}>CODE</span>
@@ -154,7 +154,9 @@ export default function Admin() {
               onClick={() => navigate(link.path)}
               style={{
                 ...styles.navLink,
-                ...(i === NAV_LINKS.length - 1 ? { borderRight: '2px solid #75715e' } : {}),
+                borderColor: t.border,
+                color: t.textMuted,
+                ...(i === NAV_LINKS.length - 1 ? { borderRight: `2px solid ${t.border}` } : { borderRight: 'none' }),
                 cursor: 'pointer',
               }}
             >
@@ -162,28 +164,42 @@ export default function Admin() {
             </a>
           ))}
         </div>
-        <div style={styles.adminTag}>⚙ ADMIN</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
+            {t.isLight ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
+              </svg>
+            )}
+          </button>
+          <div style={styles.adminTag}>⚙ ADMIN</div>
+        </div>
       </nav>
 
       <div style={styles.content}>
 
         {/* Header */}
-        <div style={styles.tag}>{'// admin_panel'}</div>
-        <h1 style={styles.title}>
+        <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// admin_panel'}</div>
+        <h1 style={{ ...styles.title, color: t.text }}>
           <span style={styles.kw}>sudo</span>{' '}
           <span style={styles.fn}>manage</span>
-          <span style={styles.paren}>()</span>
+          <span style={{ color: t.text }}>()</span>
         </h1>
 
         {/* Tabs */}
-        <div style={styles.tabsRow}>
-          {TABS.map((t) => (
+        <div style={{ ...styles.tabsRow, borderColor: t.border }}>
+          {TABS.map((tb) => (
             <button
-              key={t}
-              style={{ ...styles.tabBtn, ...(tab === t ? styles.tabBtnActive : {}) }}
-              onClick={() => { setTab(t); setMsg(null); }}
+              key={tb}
+              style={{ ...styles.tabBtn, borderRightColor: t.border, color: t.textMuted, ...(tab === tb ? styles.tabBtnActive : {}) }}
+              onClick={() => { setTab(tb); setMsg(null); }}
             >
-              {t}
+              {tb}
             </button>
           ))}
         </div>
@@ -192,8 +208,8 @@ export default function Admin() {
         {msg && (
           <div style={{
             ...styles.flash,
-            color: msg.type === 'success' ? '#a6e22e' : '#f92672',
-            borderColor: msg.type === 'success' ? '#a6e22e' : '#f92672',
+            color: msg.type === 'success' ? t.green : '#f92672',
+            borderColor: msg.type === 'success' ? t.green : '#f92672',
           }}>
             {msg.type === 'success' ? '// ' : '// error: '}{msg.text}
           </div>
@@ -202,52 +218,52 @@ export default function Admin() {
         {/* ---- QUESTIONS ---- */}
         {tab === 'Questions' && (
           <div style={styles.panelGrid}>
-            <div style={styles.panel}>
+            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
               <div style={styles.panelTitle}>{'// add_question'}</div>
-              <label style={styles.label}>question text</label>
+              <label style={{ ...styles.label, color: t.textMuted }}>question text</label>
               <textarea
-                style={styles.textarea}
+                style={{ ...styles.textarea, background: t.pageBg, borderColor: t.border, color: t.text }}
                 rows={3}
                 placeholder="Is JavaScript single-threaded?"
                 value={qText}
                 onChange={e => setQText(e.target.value)}
               />
-              <label style={styles.label}>correct answer</label>
+              <label style={{ ...styles.label, color: t.textMuted }}>correct answer</label>
               <div style={styles.toggleRow}>
                 <button
-                  style={{ ...styles.toggleBtn, ...(qAnswer === true ? styles.toggleActiveGreen : {}) }}
+                  style={{ ...styles.toggleBtn, borderColor: t.border, color: t.textMuted, ...(qAnswer === true ? styles.toggleActiveGreen : {}) }}
                   onClick={() => setQAnswer(true)}
                 >TRUE</button>
                 <button
-                  style={{ ...styles.toggleBtn, ...(qAnswer === false ? styles.toggleActivePink : {}) }}
+                  style={{ ...styles.toggleBtn, borderColor: t.border, color: t.textMuted, ...(qAnswer === false ? styles.toggleActivePink : {}) }}
                   onClick={() => setQAnswer(false)}
                 >FALSE</button>
               </div>
-              <label style={styles.label}>category</label>
-              <select style={styles.select} value={qCategory} onChange={e => setQCategory(e.target.value)}>
+              <label style={{ ...styles.label, color: t.textMuted }}>category</label>
+              <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={qCategory} onChange={e => setQCategory(e.target.value)}>
                 <option value="">select category</option>
                 {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
               </select>
-              <label style={styles.label}>difficulty</label>
-              <select style={styles.select} value={qDifficulty} onChange={e => setQDifficulty(e.target.value)}>
+              <label style={{ ...styles.label, color: t.textMuted }}>difficulty</label>
+              <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={qDifficulty} onChange={e => setQDifficulty(e.target.value)}>
                 {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
-              <button style={{ ...styles.primaryBtn, opacity: qSaving ? 0.6 : 1 }} onClick={handleAddQuestion} disabled={qSaving}>
+              <button style={{ ...styles.primaryBtn, boxShadow: t.shadow, opacity: qSaving ? 0.6 : 1 }} onClick={handleAddQuestion} disabled={qSaving}>
                 {qSaving ? 'SAVING...' : '+ ADD QUESTION'}
               </button>
             </div>
 
-            <div style={styles.panel}>
+            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
               <div style={styles.panelTitle}>{'// delete_question'}</div>
-              <label style={styles.label}>question ID</label>
+              <label style={{ ...styles.label, color: t.textMuted }}>question ID</label>
               <input
-                style={styles.input}
+                style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }}
                 type="text"
                 placeholder="60d5ecb8b392d700153c3c12"
                 value={deleteId}
                 onChange={e => setDeleteId(e.target.value)}
               />
-              <div style={styles.hint}>{'// paste the _id of the question to remove'}</div>
+              <div style={{ ...styles.hint, color: t.textMuted }}>{'// paste the _id of the question to remove'}</div>
               <button style={styles.dangerBtn} onClick={handleDeleteQuestion}>
                 ✕ DELETE QUESTION
               </button>
@@ -258,32 +274,32 @@ export default function Admin() {
         {/* ---- CATEGORIES ---- */}
         {tab === 'Categories' && (
           <div style={styles.panelGrid}>
-            <div style={styles.panel}>
+            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
               <div style={styles.panelTitle}>{'// add_category'}</div>
-              <label style={styles.label}>name</label>
-              <input style={styles.input} type="text" placeholder="Frontend" value={cName} onChange={e => setCName(e.target.value)} />
-              <label style={styles.label}>slug</label>
-              <input style={styles.input} type="text" placeholder="frontend" value={cSlug} onChange={e => setCSlug(e.target.value)} />
-              <label style={styles.label}>color</label>
+              <label style={{ ...styles.label, color: t.textMuted }}>name</label>
+              <input style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }} type="text" placeholder="Frontend" value={cName} onChange={e => setCName(e.target.value)} />
+              <label style={{ ...styles.label, color: t.textMuted }}>slug</label>
+              <input style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }} type="text" placeholder="frontend" value={cSlug} onChange={e => setCSlug(e.target.value)} />
+              <label style={{ ...styles.label, color: t.textMuted }}>color</label>
               <div style={styles.colorRow}>
-                <input style={styles.colorPicker} type="color" value={cColor} onChange={e => setCColor(e.target.value)} />
+                <input style={{ ...styles.colorPicker, borderColor: t.border }} type="color" value={cColor} onChange={e => setCColor(e.target.value)} />
                 <span style={{ ...styles.colorHex, color: cColor }}>{cColor}</span>
               </div>
-              <button style={{ ...styles.primaryBtn, opacity: cSaving ? 0.6 : 1 }} onClick={handleAddCategory} disabled={cSaving}>
+              <button style={{ ...styles.primaryBtn, boxShadow: t.shadow, opacity: cSaving ? 0.6 : 1 }} onClick={handleAddCategory} disabled={cSaving}>
                 {cSaving ? 'SAVING...' : '+ ADD CATEGORY'}
               </button>
             </div>
 
-            <div style={styles.panel}>
+            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
               <div style={styles.panelTitle}>{'// existing_categories'}</div>
               <div style={styles.catList}>
                 {categories.length === 0 ? (
-                  <div style={styles.hint}>{'// none yet'}</div>
+                  <div style={{ ...styles.hint, color: t.textMuted }}>{'// none yet'}</div>
                 ) : categories.map(c => (
-                  <div key={c._id} style={styles.catItem}>
-                    <span style={{ ...styles.catDot, background: c.color || '#75715e' }} />
-                    <span style={styles.catName}>{c.name}</span>
-                    <span style={styles.catSlug}>{c.slug}</span>
+                  <div key={c._id} style={{ ...styles.catItem, borderColor: t.borderLight }}>
+                    <span style={{ ...styles.catDot, background: c.color || t.textMuted }} />
+                    <span style={{ ...styles.catName, color: t.text }}>{c.name}</span>
+                    <span style={{ ...styles.catSlug, color: t.textMuted }}>{c.slug}</span>
                   </div>
                 ))}
               </div>
@@ -293,22 +309,22 @@ export default function Admin() {
 
         {/* ---- DAILY CHALLENGE ---- */}
         {tab === 'Daily Challenge' && (
-          <div style={styles.panel}>
+          <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
             <div style={styles.panelTitle}>{'// set_daily_challenge'}</div>
-            <label style={styles.label}>category</label>
-            <select style={styles.select} value={dCategory} onChange={e => setDCategory(e.target.value)}>
+            <label style={{ ...styles.label, color: t.textMuted }}>category</label>
+            <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={dCategory} onChange={e => setDCategory(e.target.value)}>
               <option value="">select category</option>
               {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
-            <label style={styles.label}>difficulty</label>
-            <select style={styles.select} value={dDifficulty} onChange={e => setDDifficulty(e.target.value)}>
+            <label style={{ ...styles.label, color: t.textMuted }}>difficulty</label>
+            <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={dDifficulty} onChange={e => setDDifficulty(e.target.value)}>
               {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <label style={styles.label}>bonus XP</label>
-            <input style={styles.input} type="number" min="0" max="10000" value={dBonus} onChange={e => setDBonus(e.target.value)} />
-            <label style={styles.label}>active date (optional — defaults to today)</label>
-            <input style={styles.input} type="date" value={dDate} onChange={e => setDDate(e.target.value)} />
-            <button style={{ ...styles.primaryBtn, opacity: dSaving ? 0.6 : 1 }} onClick={handleSetDaily} disabled={dSaving}>
+            <label style={{ ...styles.label, color: t.textMuted }}>bonus XP</label>
+            <input style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }} type="number" min="0" max="10000" value={dBonus} onChange={e => setDBonus(e.target.value)} />
+            <label style={{ ...styles.label, color: t.textMuted }}>active date (optional — defaults to today)</label>
+            <input style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }} type="date" value={dDate} onChange={e => setDDate(e.target.value)} />
+            <button style={{ ...styles.primaryBtn, boxShadow: t.shadow, opacity: dSaving ? 0.6 : 1 }} onClick={handleSetDaily} disabled={dSaving}>
               {dSaving ? 'SAVING...' : '✓ SET DAILY CHALLENGE'}
             </button>
           </div>
@@ -316,15 +332,15 @@ export default function Admin() {
 
         {/* ---- GLOBAL HISTORY ---- */}
         {tab === 'Global History' && (
-          <div style={styles.panel}>
+          <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
             <div style={styles.panelTitle}>{'// global_history (last 50)'}</div>
             {historyLoading ? (
-              <div style={styles.hint}>{'// loading...'}</div>
+              <div style={{ ...styles.hint, color: t.textMuted }}>{'// loading...'}</div>
             ) : history.length === 0 ? (
-              <div style={styles.hint}>{'// no_attempts_yet'}</div>
+              <div style={{ ...styles.hint, color: t.textMuted }}>{'// no_attempts_yet'}</div>
             ) : (
               <div style={styles.historyWrap}>
-                <div style={styles.historyHead}>
+                <div style={{ ...styles.historyHead, borderBottomColor: t.border, color: t.textMuted }}>
                   <span style={{ flex: 1 }}>user</span>
                   <span style={{ width: '120px' }}>category</span>
                   <span style={{ width: '70px' }}>diff</span>
@@ -332,12 +348,12 @@ export default function Admin() {
                   <span style={{ width: '70px', textAlign: 'right' }}>XP</span>
                 </div>
                 {history.map((h, i) => (
-                  <div key={h._id || i} style={styles.historyRow}>
-                    <span style={{ flex: 1, color: '#f8f8f2', fontWeight: 700 }}>{h.user?.username || '?'}</span>
+                  <div key={h._id || i} style={{ ...styles.historyRow, borderBottomColor: t.borderLight }}>
+                    <span style={{ flex: 1, color: t.text, fontWeight: 700 }}>{h.user?.username || '?'}</span>
                     <span style={{ width: '120px', color: '#66d9e8' }}>{h.category?.name || '?'}</span>
-                    <span style={{ width: '70px', color: '#75715e' }}>{h.difficulty}</span>
-                    <span style={{ width: '50px', textAlign: 'center', color: '#a6e22e', fontWeight: 700 }}>{h.correctAnswers}/10</span>
-                    <span style={{ width: '70px', textAlign: 'right', color: '#e6db74' }}>+{h.earnedXP}</span>
+                    <span style={{ width: '70px', color: t.textMuted }}>{h.difficulty}</span>
+                    <span style={{ width: '50px', textAlign: 'center', color: t.green, fontWeight: 700 }}>{h.correctAnswers}/10</span>
+                    <span style={{ width: '70px', textAlign: 'right', color: t.yellow }}>+{h.earnedXP}</span>
                   </div>
                 ))}
               </div>
@@ -359,6 +375,7 @@ const styles = {
   logoName: { background: '#a6e22e', color: '#272822', padding: '0 5px' },
   navLinks: { display: 'flex' },
   navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
+  themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
   adminTag: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#fd971f', color: '#272822', border: '2px solid #fd971f', padding: '4px 14px', letterSpacing: '1px' },
 
   content: { padding: '28px 24px', maxWidth: '900px', margin: '0 auto' },

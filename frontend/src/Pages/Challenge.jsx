@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
+import { useTheme } from '../Context/ThemeContext';
+import { getThemeColors } from '../constants/theme';
 import socket from '../socket/socket';
 import api from '../API/axios';
 
@@ -10,6 +12,8 @@ export default function Challenge() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const t = getThemeColors(theme);
 
   const category = location.state?.category || 'js';
   const difficulty = location.state?.difficulty || 'easy';
@@ -26,8 +30,8 @@ export default function Challenge() {
   const [winner, setWinner] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [waiting, setWaiting] = useState(false); // finished locally, awaiting server result
-  const [matchTime, setMatchTime] = useState(null); // total elapsed seconds
+  const [waiting, setWaiting] = useState(false);
+  const [matchTime, setMatchTime] = useState(null);
   const matchStartRef = useRef(null);
 
   const question = questions[current];
@@ -48,12 +52,10 @@ export default function Challenge() {
   useEffect(() => {
     socket.connect();
 
-    
     socket.on('connect', () => {
       socket.emit('join_match', { challengeId });
     });
 
-    // if already connected
     if (socket.connected) {
       socket.emit('join_match', { challengeId });
     }
@@ -65,7 +67,6 @@ export default function Challenge() {
     });
 
     socket.on('opponent_progress', (data) => {
-      // Only update oppScore — ignore events about ourselves
       if (String(data.userId) !== String(user._id)) {
         setOppScore(data.questionsAnswered);
       }
@@ -76,16 +77,13 @@ export default function Challenge() {
       const oppResult = Object.entries(data.results || {})
         .find(([id]) => id !== String(user._id))?.[1];
 
-      // Use authoritative server scores
       if (myResult) setMyScore(myResult.correctCount ?? 0);
       if (oppResult) setOppScore(oppResult.correctCount ?? 0);
 
-      // Total match time — wall clock from match_ready to match_over
       if (matchStartRef.current) {
         setMatchTime(Math.round((Date.now() - matchStartRef.current) / 1000));
       }
 
-      // Determine winner — null winnerId means draw
       if (data.winnerId === null || data.winnerId === undefined) {
         setWinner('draw');
       } else if (String(data.winnerId) === String(user._id)) {
@@ -108,7 +106,6 @@ export default function Challenge() {
     };
   }, [challengeId]);
 
-
   const handleAnswer = async (answer) => {
     if (answered) return;
     setAnswered(true);
@@ -126,11 +123,9 @@ export default function Challenge() {
           i === current ? { ...q, correct_answer: res.data.correctAnswer } : q
         ));
       } catch {
-        // fallback
       }
     }
 
-    // Always emit to the backend so it knows we've passed this question, even if we timed out
     socket.emit('submit_answer', {
       challengeId,
       questionId: questions[current]?._id,
@@ -139,11 +134,10 @@ export default function Challenge() {
     });
   };
 
-  // Timer
   useEffect(() => {
     if (answered || gameOver) return;
     if (timer === 0) {
-      setTimeout(() => handleAnswer(null), 0);;
+      setTimeout(() => handleAnswer(null), 0);
       return;
     }
     const interval = setInterval(() => setTimer(t => t - 1), 1000);
@@ -152,7 +146,6 @@ export default function Challenge() {
 
   const handleNext = () => {
     if (current + 1 >= questions.length) {
-      // All questions answered locally — wait for the server's authoritative match_over
       setWaiting(true);
       return;
     }
@@ -162,7 +155,6 @@ export default function Challenge() {
     setTimer(TIMER_MAX);
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (answered || gameOver) return;
     const handleKey = (e) => {
@@ -174,24 +166,25 @@ export default function Challenge() {
   }, [answered, gameOver]);
 
   if (loading) return (
-    <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: '#75715e', fontFamily: "'Space Mono', monospace" }}>
+    <div style={{ ...styles.page, background: t.pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: t.textMuted, fontFamily: "'Space Mono', monospace" }}>
         {'// waiting_for_opponent...'}
       </div>
     </div>
   );
 
   if (waiting) return (
-    <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ ...styles.page, background: t.pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace" }}>
-        <div style={{ color: '#a6e22e', fontSize: '18px', fontWeight: 700, marginBottom: '12px' }}>// done!</div>
-        <div style={{ color: '#75715e', fontSize: '13px' }}>waiting_for_opponent...</div>
+        <div style={{ color: t.green, fontSize: '18px', fontWeight: 700, marginBottom: '12px' }}>// done!</div>
+        <div style={{ color: t.textMuted, fontSize: '13px' }}>waiting_for_opponent...</div>
       </div>
     </div>
   );
+
   if (gameOver) return (
-    <div style={styles.page}>
-      <nav style={styles.nav}>
+    <div style={{ ...styles.page, background: t.pageBg }}>
+      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
           <span style={styles.logoName}>CODE</span>
@@ -206,55 +199,55 @@ export default function Challenge() {
         </div>
       </nav>
       <div style={styles.content}>
-        <div style={styles.tag}>{'// match_over'}</div>
-        <h1 style={{ ...styles.title, color: winner === 'you' ? '#a6e22e' : winner === 'draw' ? '#e6db74' : '#f92672' }}>
+        <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// match_over'}</div>
+        <h1 style={{ ...styles.title, color: winner === 'you' ? t.green : winner === 'draw' ? t.yellow : '#f92672' }}>
           {winner === 'you' ? 'victory()' : winner === 'draw' ? 'draw()' : 'defeat()'}
         </h1>
-        <div style={styles.finalCard}>
+        <div style={{ ...styles.finalCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
           <div style={styles.finalScores}>
             <div style={styles.finalPlayer}>
               <div style={{ ...styles.finalAvatar, background: '#a6e22e', color: '#272822' }}>
                 {user?.username?.[0]?.toUpperCase()}
               </div>
-              <div style={styles.finalName}>{user?.username}</div>
-              <div style={{ ...styles.finalScore, color: '#a6e22e' }}>{myScore}</div>
+              <div style={{ ...styles.finalName, color: t.text }}>{user?.username}</div>
+              <div style={{ ...styles.finalScore, color: t.green }}>{myScore}</div>
             </div>
             <div style={styles.vsText}>VS</div>
             <div style={styles.finalPlayer}>
               <div style={{ ...styles.finalAvatar, background: '#f92672', color: '#fff' }}>
                 {opponent?.username?.[0]?.toUpperCase() || '?'}
               </div>
-              <div style={styles.finalName}>{opponent?.username || 'opponent'}</div>
+              <div style={{ ...styles.finalName, color: t.text }}>{opponent?.username || 'opponent'}</div>
               <div style={{ ...styles.finalScore, color: '#f92672' }}>{oppScore}</div>
             </div>
           </div>
-          <div style={styles.matchTimeRow}>
+          <div style={{ ...styles.matchTimeRow, color: t.textMuted }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fd971f" strokeWidth="2.5" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 3" />
             </svg>
             match time: <span style={{ color: '#fd971f', fontWeight: 700, marginLeft: '4px' }}>{fmtTime(matchTime)}</span>
           </div>
-          <div style={styles.winnerMsg}>
-            {winner === 'you' && <div style={{ color: '#a6e22e' }}>// you_crushed_it! +50 XP</div>}
-            {winner === 'draw' && <div style={{ color: '#e6db74' }}>// evenly_matched! +25 XP</div>}
+          <div style={{ ...styles.winnerMsg, background: t.pageBg, borderColor: t.borderLight }}>
+            {winner === 'you' && <div style={{ color: t.green }}>// you_crushed_it! +50 XP</div>}
+            {winner === 'draw' && <div style={{ color: t.yellow }}>// evenly_matched! +25 XP</div>}
             {winner === 'opponent' && <div style={{ color: '#f92672' }}>// better_luck_next_time</div>}
           </div>
         </div>
         <div style={styles.actionsRow}>
-          <button style={styles.playAgainBtn} onClick={() => navigate('/quiz')}
+          <button style={{ ...styles.playAgainBtn, boxShadow: t.shadow }} onClick={() => navigate('/quiz')}
             onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
             onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
           >▶ PLAY AGAIN</button>
-          <button style={styles.dashBtn} onClick={() => navigate('/dashboard')}>← DASHBOARD</button>
+          <button style={{ ...styles.dashBtn, borderColor: t.border, color: t.textMuted }} onClick={() => navigate('/dashboard')}>← DASHBOARD</button>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div style={styles.page}>
-      <nav style={styles.nav}>
+    <div style={{ ...styles.page, background: t.pageBg }}>
+      <nav style={{ ...styles.nav, background: t.navBg, borderBottomColor: t.border }}>
         <div style={styles.logo}>
           <span style={styles.bracket}>[</span>
           <span style={styles.logoName}>CODE</span>
@@ -270,47 +263,47 @@ export default function Challenge() {
       </nav>
 
       {/* Progress bar */}
-      <div style={styles.progressBar}>
+      <div style={{ ...styles.progressBar, background: t.borderLight }}>
         <div style={{ ...styles.progressFill, width: `${(current / questions.length) * 100}%`, background: getTimerColor() }} />
       </div>
 
       <div style={styles.content}>
 
         {/* Scoreboard */}
-        <div style={styles.scoreboard}>
+        <div style={{ ...styles.scoreboard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
           <div style={styles.scorePlayer}>
             <div style={{ ...styles.scoreAvatar, background: '#a6e22e', color: '#272822' }}>
               {user?.username?.[0]?.toUpperCase()}
             </div>
-            <div style={styles.scoreName}>{user?.username}</div>
-            <div style={{ ...styles.scoreNum, color: '#a6e22e' }}>{myScore}</div>
+            <div style={{ ...styles.scoreName, color: t.text }}>{user?.username}</div>
+            <div style={{ ...styles.scoreNum, color: t.green }}>{myScore}</div>
           </div>
 
           <div style={styles.scoreCenter}>
-            <div style={styles.timerCircle2}>
+            <div style={{ ...styles.timerCircle2, borderColor: t.border }}>
               <div style={{ ...styles.timerNum, color: getTimerColor() }}>{timer}</div>
-              <div style={styles.timerLabel}>SEC</div>
+              <div style={{ ...styles.timerLabel, color: t.textMuted }}>SEC</div>
             </div>
-            <div style={styles.questionCounter}>Q{current + 1}/{questions.length}</div>
+            <div style={{ ...styles.questionCounter, color: t.textMuted }}>Q{current + 1}/{questions.length}</div>
           </div>
 
           <div style={styles.scorePlayer}>
             <div style={{ ...styles.scoreAvatar, background: '#f92672', color: '#fff' }}>
               {opponent?.username?.[0]?.toUpperCase() || '?'}
             </div>
-            <div style={styles.scoreName}>{opponent?.username || 'opponent'}</div>
+            <div style={{ ...styles.scoreName, color: t.text }}>{opponent?.username || 'opponent'}</div>
             <div style={{ ...styles.scoreNum, color: '#f92672' }}>{oppScore}</div>
           </div>
         </div>
 
         {/* Question */}
-        <div style={styles.questionCard}>
-          <div style={styles.questionMeta}>
+        <div style={{ ...styles.questionCard, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+          <div style={{ ...styles.questionMeta, color: t.textMuted }}>
             {'// '}<span style={{ color: '#66d9e8' }}>{category}</span>
-            {'.'}<span style={{ color: '#a6e22e' }}>{difficulty}</span>
-            <span style={{ color: '#75715e' }}> — question_{current + 1}</span>
+            {'.'}<span style={{ color: t.green }}>{difficulty}</span>
+            <span style={{ color: t.textMuted }}> — question_{current + 1}</span>
           </div>
-          <div style={styles.questionText}>{question?.text}</div>
+          <div style={{ ...styles.questionText, color: t.text }}>{question?.text}</div>
         </div>
 
         {/* True / False */}
@@ -319,6 +312,8 @@ export default function Challenge() {
             style={{
               ...styles.answerBtn,
               ...styles.trueBtn,
+              background: t.cardBg,
+              boxShadow: t.shadow,
               ...(answered && question?.correct_answer === true ? styles.correctBtn : {}),
               ...(answered && selected === true && question?.correct_answer !== true ? styles.wrongBtn : {}),
               opacity: answered ? 0.85 : 1,
@@ -333,6 +328,8 @@ export default function Challenge() {
             style={{
               ...styles.answerBtn,
               ...styles.falseBtn,
+              background: t.cardBg,
+              boxShadow: t.shadow,
               ...(answered && question?.correct_answer === false ? styles.correctBtn : {}),
               ...(answered && selected === false && question?.correct_answer !== false ? styles.wrongBtn : {}),
               opacity: answered ? 0.85 : 1,
@@ -347,10 +344,10 @@ export default function Challenge() {
 
         {answered && (
           <div style={styles.nextRow}>
-            <div style={{ ...styles.resultTag, color: selected === question?.correct_answer ? '#a6e22e' : '#f92672' }}>
+            <div style={{ ...styles.resultTag, color: selected === question?.correct_answer ? t.green : '#f92672' }}>
               {selected === question?.correct_answer ? '// correct! +10 XP' : selected === null ? '// time_up!' : '// wrong!'}
             </div>
-            <button style={styles.nextBtn} onClick={handleNext}
+            <button style={{ ...styles.nextBtn, boxShadow: t.shadow }} onClick={handleNext}
               onMouseEnter={e => e.currentTarget.style.background = '#8dca25'}
               onMouseLeave={e => e.currentTarget.style.background = '#a6e22e'}
             >
