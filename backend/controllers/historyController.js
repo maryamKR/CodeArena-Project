@@ -1,5 +1,25 @@
 const History = require('../models/History');
 const User = require('../models/User');
+const userService = require('../services/userService');
+
+/**
+ * @desc    Get questions solved per category for a user
+ * @route   GET /api/history/stats/:username
+ * @access  Private
+ */
+exports.getUserCategoryStats = async (req, res, next) => {
+  try {
+    const { username } = req.params;
+    const stats = await userService.getUserCategoryStats(username);
+
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * @desc    Get user's quiz history by username

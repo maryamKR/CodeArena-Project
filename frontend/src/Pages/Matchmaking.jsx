@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import socket from '../socket/socket';
-import api from '../api/axios';
+import api from '../API/axios';
 
 const SEARCHING_MESSAGES = [
   '// scanning_arena_for_opponents...',
@@ -48,35 +48,48 @@ export default function Matchmaking() {
   const [challengeId, setChallengeId] = useState(null);
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  // Connect socket first
-  socket.connect();
+    const joinMatchmaking = () => {
+      api.post('/matchmaking/join', {
+        difficulty,
+        categorySlug: category,
+        socketId: socket.id,
+      }).catch(err => {
+        console.error('Failed to join matchmaking:', err);
+      });
+    };
 
-  
-  socket.on('connect', () => {
-    api.post('/matchmaking/join', {
-      difficulty,
-      socketId: socket.id, 
-    }).catch(() => {});
-  });
+    // Connect socket first if not connected
+    if (!socket.connected) {
+      socket.connect();
+    }
 
-  // Listen for match found
-  socket.on('matched', (data) => {
-    console.log('matched data:', data);
-    setOpponent(data.opponent);
-    setChallengeId(data.challengeId);
-    setStatus('found');
-  });
+    socket.on('connect', joinMatchmaking);
 
-  // Cleanup
-  return () => {
-    socket.off('connect');
-    socket.off('matched');
-    api.delete('/matchmaking/leave').catch(() => {});
-    socket.disconnect();
-  };
-}, [user]);
+    // If already connected, manually call the join logic
+    if (socket.connected) {
+      joinMatchmaking();
+    }
+
+    // Listen for match found
+    socket.on('matched', (data) => {
+      console.log('matched data:', data);
+      setOpponent(data.opponent);
+      setChallengeId(data.challengeId);
+      setStatus('found');
+    });
+
+    // Cleanup
+    return () => {
+      socket.off('connect', joinMatchmaking);
+      socket.off('matched');
+      // Leave the matchmaking queue if we unmount before a match is found
+      if (status === 'searching') {
+        api.delete('/matchmaking/leave').catch(() => {});
+      }
+    };
+  }, [user, category, difficulty, status]);
 
   // Countdown after match found
   useEffect(() => {
@@ -179,7 +192,9 @@ export default function Matchmaking() {
 
                 {/* Opponent */}
                 <div style={styles.playerCard}>
-                  <div style={{ ...styles.foundAvatar, background: '#f92672', color: '#fff' }}>?</div>
+                  <div style={{ ...styles.foundAvatar, background: '#f92672', color: '#fff' }}>
+                    {opponent?.username?.[0]?.toUpperCase() || '?'}
+                  </div>
                   <div style={styles.foundName}>{opponent?.username || 'opponent'}</div>
                   <div style={styles.foundRank}>{opponent?.rank || 'found!'}</div>
                 </div>

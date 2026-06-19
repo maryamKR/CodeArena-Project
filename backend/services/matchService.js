@@ -8,6 +8,75 @@ const scoreService = require('./scoreService');
 const activeMatches = new Map();
 
 class MatchService {
+  constructor() {
+    // Run cleanup every minute
+    setInterval(() => this.cleanupStaleMatches(), 60 * 1000);
+  }
+
+  async cleanupStaleMatches() {
+    const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+    for (const [challengeId, matchState] of activeMatches.entries()) {
+      if (now - matchState.createdAt > STALE_THRESHOLD) {
+        if (process.env.NODE_ENV !== 'production') console.log(`Match ${challengeId} is stale. Cleaning up.`);
+        
+        try {
+          const { challenge, players } = matchState;
+          
+          if (!matchState.questions || matchState.questions.length === 0) {
+            // Match never started
+            challenge.status = 'declined';
+            await challenge.save();
+          } else {
+            // Match started but never finished. Consider as forfeit.
+            const playerIds = Object.keys(players);
+            if (playerIds.length === 2) {
+              const p1 = playerIds[0];
+              const p2 = playerIds[1];
+              
+              let winnerId = null;
+              
+              if (players[p1].finished && !players[p2].finished) {
+                winnerId = p1;
+              } else if (players[p2].finished && !players[p1].finished) {
+                winnerId = p2;
+              } else if (players[p1].answers.length > players[p2].answers.length) {
+                winnerId = p1;
+              } else if (players[p2].answers.length > players[p1].answers.length) {
+                winnerId = p2;
+              }
+
+              if (winnerId) {
+                // Calculate XP for the winner based on questions they answered
+                const winnerState = players[winnerId];
+                const TIME_LIMIT = 100;
+                const categoryId = challenge.category 
+                  ? (challenge.category._id || challenge.category) 
+                  : (matchState.questions[0]?.category || null);
+                  
+                await scoreService.submitScore(
+                  winnerId,
+                  winnerState.correctCount,
+                  challenge.difficulty,
+                  Math.max(0, TIME_LIMIT - winnerState.timeTaken),
+                  TIME_LIMIT,
+                  categoryId
+                );
+              }
+            }
+            
+            challenge.status = 'completed';
+            await challenge.save();
+          }
+        } catch (err) {
+          console.error('Error cleaning up stale match:', err);
+        }
+        
+        activeMatches.delete(challengeId);
+      }
+    }
+  }
+
   /**
    * Called when a player connects to the match lobby.
    */
@@ -42,6 +111,7 @@ class MatchService {
     // 4. Initialize match state if it doesn't exist
     if (!activeMatches.has(challengeId)) {
       activeMatches.set(challengeId, {
+        createdAt: Date.now(),
         challenge,
         questions: [],
         players: {
@@ -123,14 +193,23 @@ class MatchService {
    */
   async submitAnswer(challengeId, userId, questionId, answerBoolean, timeTakenSec, io) {
     const matchState = activeMatches.get(challengeId);
-    if (!matchState) return;
+    if (!matchState) {
+      console.log('submitAnswer: Match not found', challengeId);
+      return;
+    }
 
     const playerState = matchState.players[userId.toString()];
-    if (!playerState || playerState.finished) return;
+    if (!playerState || playerState.finished) {
+      console.log('submitAnswer: Player not found or already finished', userId);
+      return;
+    }
 
     // Server-side verification (Anti-cheat)
-    const question = matchState.questions.find(q => q._id.toString() === questionId.toString());
-    if (!question) return;
+    const question = matchState.questions.find(q => q._id.toString() === (questionId || '').toString());
+    if (!question) {
+      console.log('submitAnswer: Question not found', questionId);
+      return;
+    }
 
     const isCorrect = question.correct_answer === answerBoolean;
 
@@ -141,6 +220,8 @@ class MatchService {
     if (isCorrect) {
       playerState.correctCount += 1;
     }
+
+    console.log(`submitAnswer: Player ${userId} answered ${playerState.answers.length}/10`);
 
     // Notify the opponent of the progress
     // (We emit to the room, but the frontend can filter by userId to show opponent progress)
@@ -157,6 +238,8 @@ class MatchService {
 
       // Check if both players are finished
       const players = Object.values(matchState.players);
+      console.log(`submitAnswer: Checking if both finished. Player counts: ${players.map(p => p.answers.length).join(', ')}`);
+      
       if (players.every(p => p.finished)) {
         await this.endMatch(challengeId, io);
       }
@@ -167,66 +250,83 @@ class MatchService {
    * Handles the end of the match, calculates XP, and saves to DB.
    */
   async endMatch(challengeId, io) {
-    const matchState = activeMatches.get(challengeId);
-    if (!matchState) return;
+    try {
+      const matchState = activeMatches.get(challengeId);
+      if (!matchState) return;
 
-    const { challenge, players } = matchState;
-    const senderId = challenge.sender._id.toString();
-    const receiverId = challenge.receiver._id.toString();
+      const { challenge, players, questions } = matchState;
+      const senderId = challenge.sender._id.toString();
+      const receiverId = challenge.receiver._id.toString();
 
-    const senderState = players[senderId];
-    const receiverState = players[receiverId];
+      const senderState = players[senderId];
+      const receiverState = players[receiverId];
 
-    // Total time given for 10 questions (assuming 15s per question)
-    const TIME_LIMIT = 150;
+      // Total time given for 10 questions (assuming 10s per question)
+      const TIME_LIMIT = 100;
 
-    // Calculate XP for both using the existing secure score service
-    const senderResult = await scoreService.submitScore(
-      senderId,
-      senderState.correctCount,
-      challenge.difficulty,
-      Math.max(0, TIME_LIMIT - senderState.timeTaken), // timeLeft
-      TIME_LIMIT,
-      challenge.category ? (challenge.category._id || challenge.category) : null
-    );
+      // Pull category from challenge or questions
+      const categoryId = challenge.category 
+        ? (challenge.category._id || challenge.category) 
+        : (questions[0]?.category || null);
 
-    const receiverResult = await scoreService.submitScore(
-      receiverId,
-      receiverState.correctCount,
-      challenge.difficulty,
-      Math.max(0, TIME_LIMIT - receiverState.timeTaken), // timeLeft
-      TIME_LIMIT,
-      challenge.category ? (challenge.category._id || challenge.category) : null
-    );
+      // Calculate XP for both using the existing secure score service
+      const senderResult = await scoreService.submitScore(
+        senderId,
+        senderState.correctCount,
+        challenge.difficulty,
+        Math.max(0, TIME_LIMIT - senderState.timeTaken), // timeLeft
+        TIME_LIMIT,
+        categoryId
+      );
 
-    // Determine winner
-    let winnerId = null;
-    if (senderResult.earnedXP > receiverResult.earnedXP) {
-      winnerId = senderId;
-    } else if (receiverResult.earnedXP > senderResult.earnedXP) {
-      winnerId = receiverId;
-    }
+      const receiverResult = await scoreService.submitScore(
+        receiverId,
+        receiverState.correctCount,
+        challenge.difficulty,
+        Math.max(0, TIME_LIMIT - receiverState.timeTaken), // timeLeft
+        TIME_LIMIT,
+        categoryId
+      );
 
-    // Update challenge status
-    challenge.status = 'completed';
-    await challenge.save();
-
-    const finalPayload = {
-      winnerId,
-      categoryName: challenge.category ? (challenge.category.name || 'General Knowledge') : 'General Knowledge',
-      results: {
-        [senderId]: { correctCount: senderState.correctCount, xpEarned: senderResult.earnedXP, timeTaken: senderState.timeTaken },
-        [receiverId]: { correctCount: receiverState.correctCount, xpEarned: receiverResult.earnedXP, timeTaken: receiverState.timeTaken }
+      // Determine winner based on correct answers and time taken
+      let winnerId = null;
+      if (senderState.correctCount > receiverState.correctCount) {
+        winnerId = senderId;
+      } else if (receiverState.correctCount > senderState.correctCount) {
+        winnerId = receiverId;
+      } else {
+        // Tie-breaker: The player who took less time wins
+        if (senderState.timeTaken < receiverState.timeTaken) {
+          winnerId = senderId;
+        } else if (receiverState.timeTaken < senderState.timeTaken) {
+          winnerId = receiverId;
+        }
+        // If correctCount and timeTaken are exactly identical, winnerId remains null (draw)
       }
-    };
 
-    if (process.env.NODE_ENV !== 'production') console.log('MATCH OVER emitted', finalPayload);
+      // Update challenge status
+      challenge.status = 'completed';
+      await challenge.save();
 
-    // Emit final results
-    io.to(challengeId).emit('match_over', finalPayload);
+      const finalPayload = {
+        winnerId,
+        categoryName: challenge.category ? (challenge.category.name || 'General Knowledge') : 'General Knowledge',
+        results: {
+          [senderId]: { correctCount: senderState.correctCount, xpEarned: senderResult.earnedXP, timeTaken: senderState.timeTaken },
+          [receiverId]: { correctCount: receiverState.correctCount, xpEarned: receiverResult.earnedXP, timeTaken: receiverState.timeTaken }
+        }
+      };
 
-    // Clean up memory
-    activeMatches.delete(challengeId);
+      console.log('MATCH OVER emitted', finalPayload);
+
+      // Emit final results
+      io.to(challengeId).emit('match_over', finalPayload);
+
+      // Clean up memory
+      activeMatches.delete(challengeId);
+    } catch (err) {
+      console.error('ERROR IN endMatch:', err);
+    }
   }
 
   /**
@@ -251,17 +351,22 @@ class MatchService {
         if (winnerId) {
           // Award XP to the winner for the questions they already answered
           let winnerXP = 0;
-          const { challenge } = matchState;
+          const { challenge, questions } = matchState;
           try {
-            const TIME_LIMIT = 150;
+            const TIME_LIMIT = 100;
             const winnerState = matchState.players[winnerId];
+
+            const categoryId = challenge.category 
+              ? (challenge.category._id || challenge.category) 
+              : (questions[0]?.category || null);
+
             const scoreResult = await scoreService.submitScore(
               winnerId,
               winnerState.correctCount,
               challenge.difficulty,
               Math.max(0, TIME_LIMIT - winnerState.timeTaken),
               TIME_LIMIT,
-              challenge.category ? (challenge.category._id || challenge.category) : null
+              categoryId
             );
             winnerXP = scoreResult.earnedXP;
 

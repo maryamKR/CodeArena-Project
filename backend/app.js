@@ -16,6 +16,7 @@ const historyRoutes = require('./routes/historyRoutes');
 const challengeRoutes = require('./routes/challengeRoutes');
 const dailyChallengeRoutes = require('./routes/dailyChallengeRoutes');
 const matchmakingRoutes = require('./routes/matchmakingRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -77,6 +78,7 @@ app.use("/api/history", historyRoutes);
 app.use("/api/challenges", challengeRoutes);
 app.use("/api/daily-challenge", dailyChallengeRoutes);
 app.use("/api/matchmaking", matchmakingRoutes);
+app.use("/api/users", userRoutes);
 
 // Test Route
 app.get("/api/test", (req, res) => {

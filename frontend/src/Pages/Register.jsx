@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
+import { parseAuthError } from '../hook/useAuthError';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function Register() {
       await register(form.username, form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(parseAuthError(err));
     } finally {
       setLoading(false);
     }
