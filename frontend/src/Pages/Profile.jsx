@@ -175,7 +175,7 @@ export default function Profile() {
                     </div>
 
                     {/* Right column — Quiz history */}
-                    <div style={{ ...styles.rightCol, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+                    <div style={{ ...styles.rightCol, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow, maxHeight: '500px', overflowY: 'auto' }}>
                         <div style={{ ...styles.sectionTag, background: t.tagBg, color: t.textMuted }}>{'// quiz_history'}</div>
                         {loading ? (
                             <div style={{ ...styles.emptyTag, color: t.textMuted }}>{'// loading...'}</div>
@@ -184,7 +184,7 @@ export default function Profile() {
                         ) : (
                             <div style={styles.historyWrap}>
                                 {history.map((h, i) => (
-                                    <div key={i} style={{ ...styles.historyRow, borderBottom: i < history.length - 1 ? `2px solid ${t.borderLight}` : 'none' }}>
+                                    <div key={i} style={{ ...styles.historyRow, gridTemplateColumns: '1fr 1fr 80px', borderBottom: i < history.length - 1 ? `2px solid ${t.borderLight}` : 'none' }}>
                                         <div style={styles.historyLeft}>
                                             <div style={{ ...styles.historyCategory, color: t.text }}>{h.category?.name || '?'}</div>
                                             <div style={{ ...styles.historyDiff, color: t.textMuted }}>{h.difficulty}</div>
@@ -246,7 +246,7 @@ const styles = {
     logoutBtn: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '2px solid #f92672', padding: '10px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', width: '100%' },
     rightCol: { background: '#1e1f1a', border: '3px solid #75715e', padding: '20px', boxShadow: '4px 4px 0 #3e3d32' },
     historyWrap: { display: 'flex', flexDirection: 'column' },
-    historyRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', gap: '12px' },
+    historyRow: { display: 'grid', alignItems: 'center', padding: '12px 0', gap: '12px' },
     historyLeft: { display: 'flex', flexDirection: 'column', gap: '4px' },
     historyCategory: { fontSize: '13px', fontWeight: 700, color: '#f8f8f2', textTransform: 'uppercase' },
     historyDiff: { fontSize: '11px', color: '#75715e' },
