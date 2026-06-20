@@ -17,12 +17,21 @@ import ResetPassword from './Pages/ResetPassword';
 import ForgotPassword from './Pages/ForgotPassword';
 import AdminRoute from './Routes/AdminRoute';
 import Admin from './Pages/Admin';
+import ChallengeNotification from './Components/ChallengeNotification';
+import { useLocation } from 'react-router-dom';
+
+function ChallengeNotificationGate() {
+  const location = useLocation();
+  if (location.pathname === '/dashboard') return null;
+  return <ChallengeNotification />;
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
+        <ChallengeNotificationGate />
+        <Routes> 
           {/* Public routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
