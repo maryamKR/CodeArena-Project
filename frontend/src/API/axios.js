@@ -10,9 +10,10 @@ api.interceptors.response.use(
   (error) => {
     const is401 = error.response?.status === 401;
     const isAuthMe = error.config?.url?.includes('/auth/me');
-    const isOnLoginPage = window.location.pathname === '/login';
+    const publicPaths = ['/', '/login', '/register', '/forgot-password'];
+    const isOnPublicPage = publicPaths.some(p => window.location.pathname === p || window.location.pathname.startsWith('/reset-password'));
 
-    if (is401 && !isAuthMe && !isOnLoginPage) {
+    if (is401 && !isAuthMe && !isOnPublicPage) {
       window.location.href = '/login';
     }
 
