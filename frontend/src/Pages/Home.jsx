@@ -1,23 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../Context/AuthContext';
+import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
 import { getThemeColors } from '../Constants/theme';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-import api from '../API/axios';
-
-const CATEGORIES = [
-  { id: 'js', label: 'JavaScript', short: 'JS', count: 142, solved: 34, color: '#e6db74' },
-  { id: 'py', label: 'Python', short: 'PY', count: 98, solved: 12, color: '#66d9e8' },
-  { id: 'sql', label: 'SQL', short: 'SQL', count: 76, solved: 30, color: '#f92672' },
-  { id: 'htm', label: 'HTML/CSS', short: 'HTM', count: 10, solved: 0, color: '#fd971f' },
-  { id: 'algo', label: 'Algorithms', short: 'ALG', count: 3, solved: 0, color: '#a6e22e' },
-  { id: 'rea', label: 'React', short: 'REA', count: 3, solved: 0, color: '#66d9e8' },
-  { id: 'nod', label: 'Node.js', short: 'NOD', count: 3, solved: 0, color: '#a6e22e' },
-  { id: 'dev', label: 'DevOps', short: 'DEV', count: 3, solved: 0, color: '#fd971f' },
-  { id: 'git', label: 'Git', short: 'GIT', count: 3, solved: 0, color: '#f92672' },
-  { id: 'doc', label: 'Docker', short: 'DOC', count: 3, solved: 0, color: '#66d9e8' },
-];
+import api from '../api/axios';
 
 const NAV_LINKS = [
   { label: 'Home', path: '/' },
@@ -27,28 +14,10 @@ const NAV_LINKS = [
   { label: 'Profile', path: '/profile', authOnly: true },
 ];
 
-const USER_STATS = [
-  { val: '47', label: 'Quizzes played', color: '#a6e22e' },
-  { val: '320', label: 'Total XP', color: '#e6db74' },
-  { val: '#12', label: 'Global rank', color: '#66d9e8' },
-];
-
 const GLOBAL_STATS = [
   { val: '2,480', label: 'Players', color: '#a6e22e' },
   { val: '370', label: 'Questions', color: '#e6db74' },
   { val: '184', label: 'Played today', color: '#66d9e8' },
-];
-
-const TOP_PLAYERS = [
-  { rank: 1, name: 'amine_dev', xp: 2840, color: '#e6db74' },
-  { rank: 2, name: 'sara.codes', xp: 2615, color: '#75715e' },
-  { rank: 3, name: 'yass1ne', xp: 2402, color: '#f92672' },
-];
-
-const RECENT_ACTIVITY = [
-  { tag: 'JS · EASY', color: '#e6db74', score: '8/10', xp: 40, when: '2h ago' },
-  { tag: 'SQL · MEDIUM', color: '#f92672', score: '6/10', xp: 45, when: 'yesterday' },
-  { tag: 'PY · EASY', color: '#66d9e8', score: '10/10', xp: 60, when: '2 days ago' },
 ];
 
 const themeColor = (hex, t) => {
@@ -72,10 +41,71 @@ export default function Home() {
   const [resetsIn, setResetsIn] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Real API state
+  const [topPlayers, setTopPlayers] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [myRank, setMyRank] = useState(null);
+  const [categories, setCategories] = useState([]);
+
+  // Real user stats
+  const USER_STATS = [
+    { val: user?.quizzesPlayed || 0, label: 'Quizzes played', color: '#a6e22e' },
+    { val: user?.totalXP || 0, label: 'Total XP', color: '#e6db74' },
+    { val: myRank ? `#${myRank.globalRank}` : '-', label: 'Global rank', color: '#66d9e8' },
+  ];
+
   const visibleLinks = NAV_LINKS.filter(link => !link.authOnly || user);
   const stats = user ? USER_STATS : GLOBAL_STATS;
-  const visibleCats = showAllCats ? CATEGORIES : CATEGORIES.slice(0, 4);
+  const visibleCats = showAllCats ? categories : categories.slice(0, 4);
 
+  // Fetch categories, top players, rank, recent activity
+  useEffect(() => {
+    api.get('/categories')
+      .then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setCategories(res.data.map(cat => ({
+            id: cat.slug,
+            label: cat.name,
+            short: cat.slug.toUpperCase().slice(0, 3),
+            count: cat.questionCount || 0,
+            solved: 0,
+            color: cat.color || '#a6e22e',
+          })));
+        }
+      })
+      .catch(() => {});
+
+    api.get('/leaderboard?limit=3')
+      .then(res => setTopPlayers(res.data.data || []))
+      .catch(() => {});
+
+    if (user) {
+      api.get('/leaderboard/me')
+        .then(res => setMyRank(res.data.data))
+        .catch(() => {});
+      api.get(`/history/${user.username}`)
+        .then(res => setRecentActivity(res.data.data?.slice(0, 3) || []))
+        .catch(() => {});
+    }
+  }, [user]);
+
+  // Fetch category stats for progress bars
+  useEffect(() => {
+    if (!user) return;
+    api.get(`/history/stats/${user.username}`)
+      .then(res => {
+        const statsArray = res.data.data || [];
+        const statsMap = {};
+        statsArray.forEach(s => { statsMap[s.categorySlug] = { solved: s.totalSolved }; });
+        setCategories(prev => prev.map(cat => ({
+          ...cat,
+          solved: statsMap[cat.id]?.solved || 0,
+        })));
+      })
+      .catch(() => {});
+  }, [user]);
+
+  // Fetch daily challenge
   useEffect(() => {
     if (!user) return;
     api.get('/daily-challenge')
@@ -86,6 +116,7 @@ export default function Home() {
       .catch(() => setDaily(null));
   }, [user]);
 
+  // Live countdown
   useEffect(() => {
     if (resetsIn <= 0) return;
     const id = setInterval(() => setResetsIn(s => (s > 0 ? s - 1 : 0)), 1000);
@@ -116,12 +147,10 @@ export default function Home() {
           {' '}ARENA
         </div>
 
-        {/* Desktop/tablet nav links */}
         {!isMobile && (
           <div style={styles.navLinks}>
             {visibleLinks.map((link, i) => (
               <a
-              
                 key={link.label}
                 onClick={() => navigate(link.path)}
                 style={{
@@ -140,7 +169,6 @@ export default function Home() {
         )}
 
         <div style={styles.navRight}>
-          {/* Hamburger — mobile only */}
           {isMobile && (
             <button style={{ ...styles.hamburger, borderColor: t.border, color: t.textMuted }} onClick={() => setMenuOpen(m => !m)}>
               {menuOpen ? '✕' : '☰'}
@@ -176,12 +204,10 @@ export default function Home() {
           )}
         </div>
 
-        {/* Mobile dropdown menu */}
         {isMobile && menuOpen && (
           <div style={{ ...styles.mobileMenu, background: t.navBg, borderTopColor: t.border }}>
             {visibleLinks.map((link) => (
               <a
-              
                 key={link.label}
                 onClick={() => { navigate(link.path); setMenuOpen(false); }}
                 style={{ ...styles.mobileMenuItem, color: t.textMuted, borderBottomColor: t.borderLight }}
@@ -212,7 +238,7 @@ export default function Home() {
         <p style={styles.heroSub}>{'// Choose your battlefield. Prove your skills.'}</p>
       </div>
 
-      {/* Sign-up CTA — logged-out only */}
+      {/* Sign-up CTA */}
       {!user && (
         <div style={{ ...styles.ctaWrap, padding: isMobile ? '16px' : '20px 24px 0' }}>
           <div style={{ ...styles.ctaPanel, flexDirection: isMobile ? 'column' : 'row' }}>
@@ -249,7 +275,7 @@ export default function Home() {
             <div style={{ ...styles.catIcon, color: themeColor(cat.color, t), fontSize: isMobile ? '18px' : '22px' }}>{cat.short}</div>
             <div style={{ ...styles.catName, color: t.text }}>{cat.label}</div>
             <div style={{ ...styles.catCount, color: t.textMuted }}>{cat.count} questions</div>
-            {user && (
+            {user && cat.count > 0 && (
               <>
                 <div style={{ ...styles.catBarTrack, background: t.isLight ? '#b8b5a8' : '#1e1f1a', borderColor: t.borderLight }}>
                   <div style={{ ...styles.catBarFill, width: `${(cat.solved / cat.count) * 100}%`, background: themeColor(cat.color, t) }} />
@@ -261,8 +287,8 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Show more / less categories */}
-      {CATEGORIES.length > 4 && (
+      {/* Show more */}
+      {categories.length > 4 && (
         <div style={{ ...styles.showMoreRow, borderBottomColor: t.border, background: t.cardBg }}>
           <button
             style={{ ...styles.showMoreBtn, color: t.green, borderColor: t.green }}
@@ -270,7 +296,7 @@ export default function Home() {
             onMouseEnter={e => { e.currentTarget.style.background = t.green; e.currentTarget.style.color = '#272822'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.green; }}
           >
-            {showAllCats ? '− show less' : `+ show ${CATEGORIES.length - 4} more`}
+            {showAllCats ? '− show less' : `+ show ${categories.length - 4} more`}
           </button>
         </div>
       )}
@@ -305,7 +331,7 @@ export default function Home() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#f92672" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M12 2c0 0-5 4-5 9a5 5 0 0010 0c0-2-1-4-2-5 0 2-1 3-3 3s-2-2-2-3c0-2 2-4 2-4z" />
             </svg>
-            5 day streak
+            {user?.streak || 0} day streak
           </div>
         )}
       </div>
@@ -359,32 +385,32 @@ export default function Home() {
             </>
           ) : (
             <div style={{ ...styles.dcTimer, color: t.textMuted, marginTop: '12px' }}>
-              {user ? '// no challenge set for today' : '// login to view today\'s challenge'}
+              {user ? '// no challenge set for today' : "// login to view today's challenge"}
             </div>
           )}
         </div>
 
-        {/* Top players */}
+        {/* Top players — real API data */}
         <div style={{ ...styles.panel, background: t.cardAltBg, borderColor: t.border }}>
           <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// top_players'}</div>
           <div style={{ marginTop: '10px' }}>
-            {TOP_PLAYERS.map((p, i) => (
-              <div
-                key={p.rank}
-                style={{
-                  ...styles.lbRow,
-                  color: t.text,
-                  ...(i === TOP_PLAYERS.length - 1 ? { borderBottom: `2px dashed ${t.borderLight}`, paddingBottom: '8px' } : {}),
-                }}
-              >
-                <span><span style={{ color: themeColor(p.color, t) }}>#{p.rank}</span> {p.name}</span>
-                <span style={{ color: t.textMuted }}>{p.xp}</span>
+            {topPlayers.map((p, i) => (
+              <div key={p._id} style={{
+                ...styles.lbRow,
+                color: t.text,
+                ...(i === topPlayers.length - 1 ? { borderBottom: `2px dashed ${t.borderLight}`, paddingBottom: '8px' } : {}),
+              }}>
+                <span>
+                  <span style={{ color: i === 0 ? '#e6db74' : i === 1 ? '#c0c0c0' : '#cd7f32' }}>#{i + 1}</span>
+                  {' '}{p.username}
+                </span>
+                <span style={{ color: t.textMuted }}>{p.totalXP}</span>
               </div>
             ))}
-            {user && (
+            {user && myRank && (
               <div style={{ ...styles.lbRow, color: '#66d9e8', paddingTop: '8px' }}>
-                <span>#12 you</span>
-                <span>320</span>
+                <span>#{myRank.globalRank} you</span>
+                <span>{myRank.totalXP}</span>
               </div>
             )}
           </div>
@@ -392,21 +418,27 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Recent activity — logged-in only */}
+      {/* Recent activity — real API data */}
       {user && (
         <div style={{ ...styles.activityWrap, padding: isMobile ? '16px' : '16px 24px 0' }}>
           <div style={{ ...styles.activityPanel, background: t.cardAltBg }}>
             <div style={{ ...styles.panelTag, background: t.tagBg, color: t.textMuted }}>{'// recent_activity'}</div>
             <div style={{ ...styles.activityGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)' }}>
-              {RECENT_ACTIVITY.map((a) => (
-                <div key={a.tag + a.when} style={{ ...styles.activityCell, borderColor: t.borderLight }}>
-                  <div style={{ ...styles.actTag, color: themeColor(a.color, t) }}>{a.tag}</div>
-                  <div style={{ ...styles.actScore, color: t.text }}>
-                    {a.score} <span style={{ ...styles.actXp, color: t.green }}>+{a.xp} XP</span>
+              {recentActivity.length > 0 ? recentActivity.map((a) => (
+                <div key={a._id} style={{ ...styles.activityCell, borderColor: t.borderLight }}>
+                  <div style={{ ...styles.actTag, color: a.category?.color || '#e6db74' }}>
+                    {a.category?.name || '?'} · {a.difficulty}
                   </div>
-                  <div style={{ ...styles.actWhen, color: t.textMuted }}>{a.when}</div>
+                  <div style={{ ...styles.actScore, color: t.text }}>
+                    {a.correctAnswers}/10 <span style={{ ...styles.actXp, color: t.green }}>+{a.earnedXP} XP</span>
+                  </div>
+                  <div style={{ ...styles.actWhen, color: t.textMuted }}>{new Date(a.createdAt).toLocaleDateString()}</div>
                 </div>
-              ))}
+              )) : (
+                <div style={{ color: t.textMuted, fontSize: '12px', gridColumn: '1/-1' }}>
+                  // no_activity_yet — play a quiz!
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -418,7 +450,6 @@ export default function Home() {
 
 const styles = {
   page: { minHeight: '100vh', background: '#272822', fontFamily: "'Space Mono', monospace", paddingBottom: '24px' },
-
   nav: { background: '#1e1f1a', borderBottom: '3px solid #75715e', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   logo: { fontFamily: "'Space Mono', monospace", fontSize: '18px', fontWeight: 700, color: '#f8f8f2', letterSpacing: '-1px' },
   bracket: { color: '#f92672' },
@@ -435,7 +466,6 @@ const styles = {
   loginBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '5px 14px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
   registerBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#272822', border: '2px solid #a6e22e', padding: '5px 14px', background: '#a6e22e', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
   logoutBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#f92672', border: '2px solid #f92672', padding: '5px 14px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
-
   hero: { padding: '36px 24px 24px', borderBottom: '3px solid #3e3d32' },
   heroTag: { fontFamily: "'Space Mono', monospace", fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '14px', letterSpacing: '2px' },
   heroTitle: { fontFamily: "'Space Mono', monospace", fontSize: '36px', fontWeight: 700, color: '#f8f8f2', lineHeight: 1.1, marginBottom: '12px', letterSpacing: '-1px' },
@@ -445,12 +475,10 @@ const styles = {
   paren: { color: '#f8f8f2' },
   str: { color: '#e6db74' },
   heroSub: { fontFamily: "'Space Mono', monospace", fontSize: '13px', color: '#75715e', borderLeft: '4px solid #f92672', paddingLeft: '12px', margin: 0 },
-
   ctaWrap: { padding: '20px 24px 0' },
   ctaPanel: { border: '3px solid #a6e22e', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' },
   ctaText: { fontFamily: "'Space Mono', monospace", fontSize: '14px', fontWeight: 700, color: '#f8f8f2', marginTop: '6px' },
   ctaBtns: { display: 'flex', gap: '10px', flexShrink: 0 },
-
   catsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '3px solid #75715e', marginTop: '20px', borderTop: '3px solid #75715e' },
   catCard: { padding: '18px 20px', background: '#2d2c28', cursor: 'pointer', transition: 'background 0.15s', borderBottom: '3px solid #75715e' },
   catIcon: { fontFamily: "'Space Mono', monospace", fontSize: '22px', fontWeight: 700, marginBottom: '8px' },
@@ -459,24 +487,19 @@ const styles = {
   catBarTrack: { height: '5px', background: '#1e1f1a', border: '1px solid #3e3d32', marginTop: '10px' },
   catBarFill: { height: '100%' },
   catSolved: { fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#75715e', marginTop: '5px' },
-
   showMoreRow: { display: 'flex', justifyContent: 'center', padding: '14px 24px', borderBottom: '3px solid #75715e', background: '#1e1f1a' },
   showMoreBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '7px 20px', background: 'transparent', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', transition: 'all 0.15s' },
-
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderBottom: '3px solid #75715e' },
   statCard: { padding: '18px 20px', textAlign: 'center', background: '#272822' },
   statVal: { fontFamily: "'Space Mono', monospace", fontSize: '28px', fontWeight: 700 },
   statLabel: { fontSize: '14px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' },
-
   startRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: '#272822' },
   startBtn: { fontFamily: "'Space Mono', monospace", fontSize: '14px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '12px 32px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32', transition: 'background 0.15s' },
   loginNote: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#75715e' },
   streak: { fontFamily: "'Space Mono', monospace", fontSize: '13px', color: '#e6db74', fontWeight: 700, display: 'flex', alignItems: 'center' },
-
   panelsGrid: { display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', padding: '4px 24px 0' },
   panel: { border: '3px solid #75715e', padding: '16px 20px', background: '#2d2c28' },
   panelTag: { fontFamily: "'Space Mono', monospace", fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', letterSpacing: '2px' },
-
   dcTitle: { fontFamily: "'Space Mono', monospace", fontSize: '17px', fontWeight: 700, color: '#f8f8f2', marginTop: '12px' },
   dcTags: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' },
   dcPill: { fontFamily: "'Space Mono', monospace", fontSize: '10px', fontWeight: 700, padding: '2px 8px', border: '2px solid', letterSpacing: '1px' },
@@ -485,10 +508,8 @@ const styles = {
   dcTimer: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#75715e', display: 'flex', alignItems: 'center' },
   dcAccept: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: '#e6db74', color: '#272822', border: '2px solid #e6db74', padding: '6px 14px', cursor: 'pointer', boxShadow: '3px 3px 0 rgba(230,219,116,0.3)', transition: 'background 0.15s' },
   dcDone: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#a6e22e', border: '2px solid #a6e22e', padding: '6px 14px', letterSpacing: '1px', cursor: 'not-allowed' },
-
   lbRow: { fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#f8f8f2', display: 'flex', justifyContent: 'space-between', padding: '4px 0' },
   lbLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#75715e', display: 'inline-block', marginTop: '10px', cursor: 'pointer' },
-
   activityWrap: { padding: '16px 24px 0' },
   activityPanel: { border: '3px solid #f92672', padding: '16px 20px', background: '#2d2c28' },
   activityGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '12px' },
