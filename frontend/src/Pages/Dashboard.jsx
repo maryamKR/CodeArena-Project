@@ -4,6 +4,7 @@ import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
 import { getThemeColors } from '../Constants/theme';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import socket from '../socket/socket';
 import api from '../API/axios';
 
 const NAV_LINKS = [
@@ -92,6 +93,33 @@ export default function Dashboard() {
         document.addEventListener('mousedown', onClickAway);
         return () => document.removeEventListener('mousedown', onClickAway);
     }, [showDropdown]);
+
+    useEffect(() => {
+    if (!socket.connected) socket.connect();
+
+    socket.on('challenge_received', (data) => {
+        setInvites(prev => {
+            if (prev.some(i => i.id === data.id)) return prev;
+            return [...prev, data];
+        });
+    });
+
+    socket.on('challenge_accepted', (data) => {
+        navigate(`/match/${data.id}`, {
+            state: {
+                challengeId: data.id,
+                opponent: data.receiver,
+                category: data.category,
+                difficulty: data.difficulty,
+            },
+        });
+    });
+
+    return () => {
+        socket.off('challenge_received');
+        socket.off('challenge_accepted');
+    };
+    }, [navigate]);
 
     const handleLogout = async () => {
         await logout();
