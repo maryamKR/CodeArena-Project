@@ -393,7 +393,7 @@ export default function Dashboard() {
                             ) : (
                                 history.map((h, i) => (
                                     <div key={i} style={{ ...styles.activityRow, gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', borderBottom: i < history.length - 1 ? `1px solid ${t.borderLight}` : 'none' }}>
-                                        <div style={{ color: '#66d9e8', fontSize: '12px', textAlign: 'left' }}>{h.category?.name || '?'}</div>
+                                        <div style={{ color: t.isLight ? '#1a7a8a' : '#66d9e8', fontSize: '12px', textAlign: 'left' }}>{h.category?.name || '?'}</div>
                                         <div style={{ color: t.textMuted, fontSize: '11px', textAlign: isMobile ? 'right' : 'center' }}>{h.difficulty}</div>
                                         <div style={{ color: t.green, fontWeight: 700, fontSize: '12px', textAlign: isMobile ? 'left' : 'center' }}>{h.correctAnswers}/10</div>
                                         <div style={{ color: t.yellow, fontSize: '11px', textAlign: 'right' }}>+{h.earnedXP} XP</div>

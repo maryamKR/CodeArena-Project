@@ -46,6 +46,9 @@ export default function Admin() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const [questionsList, setQuestionsList] = useState([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+
   useEffect(() => {
     api.get('/categories')
       .then(res => setCategories(Array.isArray(res.data) ? res.data : []))
@@ -61,6 +64,15 @@ export default function Admin() {
       .finally(() => setHistoryLoading(false));
   }, [tab]);
 
+  useEffect(() => {
+    if (tab !== 'Questions') return;
+    setQuestionsLoading(true);
+    api.get('/questions')
+      .then(res => setQuestionsList(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setQuestionsList([]))
+      .finally(() => setQuestionsLoading(false));
+  }, [tab]);
+
   const flash = (type, text) => {
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 4000);
@@ -71,19 +83,13 @@ export default function Admin() {
     if (!qCategory) return flash('error', 'Pick a category');
     setQSaving(true);
     try {
-      await api.post('/questions', {
-        text: qText.trim(),
-        correct_answer: qAnswer,
-        category: qCategory,
-        difficulty: qDifficulty,
-      });
+      const res = await api.post('/questions', { text: qText.trim(), correct_answer: qAnswer, category: qCategory, difficulty: qDifficulty });
       flash('success', 'Question added');
       setQText('');
+      setQuestionsList(prev => [res.data, ...prev]);
     } catch (err) {
       flash('error', err?.response?.data?.message || 'Failed to add question');
-    } finally {
-      setQSaving(false);
-    }
+    } finally { setQSaving(false); }
   };
 
   const handleDeleteQuestion = async () => {
@@ -94,8 +100,20 @@ export default function Admin() {
       await api.delete(`/questions/${id}`);
       flash('success', 'Question deleted');
       setDeleteId('');
+      setQuestionsList(prev => prev.filter(q => q._id !== id));
     } catch (err) {
       flash('error', err?.response?.data?.message || 'Failed to delete (check the ID)');
+    }
+  };
+
+  const handleDeleteFromList = async (id) => {
+    if (!window.confirm('Delete this question permanently?')) return;
+    try {
+      await api.delete(`/questions/${id}`);
+      setQuestionsList(prev => prev.filter(q => q._id !== id));
+      flash('success', 'Question deleted');
+    } catch (err) {
+      flash('error', err?.response?.data?.message || 'Failed to delete question');
     }
   };
 
@@ -104,18 +122,23 @@ export default function Admin() {
     if (cSlug.trim().length < 2) return flash('error', 'Slug too short');
     setCSaving(true);
     try {
-      const res = await api.post('/categories', {
-        name: cName.trim(),
-        slug: cSlug.trim().toLowerCase(),
-        color: cColor,
-      });
+      const res = await api.post('/categories', { name: cName.trim(), slug: cSlug.trim().toLowerCase(), color: cColor });
       flash('success', `Category "${cName.trim()}" created`);
       setCategories(prev => [...prev, res.data]);
       setCName(''); setCSlug('');
     } catch (err) {
       flash('error', err?.response?.data?.message || 'Failed to add category (slug may be taken)');
-    } finally {
-      setCSaving(false);
+    } finally { setCSaving(false); }
+  };
+
+  const handleDeleteCategory = async (cat) => {
+    if (!window.confirm(`Delete "${cat.name}"? This will fail if the category still has questions.`)) return;
+    try {
+      await api.delete(`/categories/${cat._id}`);
+      setCategories(prev => prev.filter(c => c._id !== cat._id));
+      flash('success', `Category "${cat.name}" deleted`);
+    } catch (err) {
+      flash('error', err?.response?.data?.message || 'Failed to delete category (may still have questions)');
     }
   };
 
@@ -129,9 +152,7 @@ export default function Admin() {
       flash('success', 'Daily challenge set');
     } catch (err) {
       flash('error', err?.response?.data?.message || 'Failed to set daily challenge');
-    } finally {
-      setDSaving(false);
-    }
+    } finally { setDSaving(false); }
   };
 
   return (
@@ -166,14 +187,9 @@ export default function Admin() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button style={{ ...styles.themeToggle, borderColor: t.border }} onClick={toggleTheme} title="Toggle theme">
             {t.isLight ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#2c2c2a"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2">
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" />
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6db74" strokeWidth="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" /></svg>
             )}
           </button>
           <div style={styles.adminTag}>⚙ ADMIN</div>
@@ -182,7 +198,6 @@ export default function Admin() {
 
       <div style={styles.content}>
 
-        {/* Header */}
         <div style={{ ...styles.tag, background: t.tagBg, color: t.textMuted }}>{'// admin_panel'}</div>
         <h1 style={{ ...styles.title, color: t.text }}>
           <span style={styles.kw}>sudo</span>{' '}
@@ -190,84 +205,85 @@ export default function Admin() {
           <span style={{ color: t.text }}>()</span>
         </h1>
 
-        {/* Tabs */}
         <div style={{ ...styles.tabsRow, borderColor: t.border }}>
           {TABS.map((tb) => (
-            <button
-              key={tb}
-              style={{ ...styles.tabBtn, borderRightColor: t.border, color: t.textMuted, ...(tab === tb ? styles.tabBtnActive : {}) }}
-              onClick={() => { setTab(tb); setMsg(null); }}
-            >
+            <button key={tb} style={{ ...styles.tabBtn, borderRightColor: t.border, color: t.textMuted, ...(tab === tb ? styles.tabBtnActive : {}) }} onClick={() => { setTab(tb); setMsg(null); }}>
               {tb}
             </button>
           ))}
         </div>
 
-        {/* Flash message */}
         {msg && (
-          <div style={{
-            ...styles.flash,
-            color: msg.type === 'success' ? t.green : '#f92672',
-            borderColor: msg.type === 'success' ? t.green : '#f92672',
-          }}>
+          <div style={{ ...styles.flash, color: msg.type === 'success' ? t.green : '#f92672', borderColor: msg.type === 'success' ? t.green : '#f92672' }}>
             {msg.type === 'success' ? '// ' : '// error: '}{msg.text}
           </div>
         )}
 
         {/* ---- QUESTIONS ---- */}
         {tab === 'Questions' && (
-          <div style={styles.panelGrid}>
-            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
-              <div style={styles.panelTitle}>{'// add_question'}</div>
-              <label style={{ ...styles.label, color: t.textMuted }}>question text</label>
-              <textarea
-                style={{ ...styles.textarea, background: t.pageBg, borderColor: t.border, color: t.text }}
-                rows={3}
-                placeholder="Is JavaScript single-threaded?"
-                value={qText}
-                onChange={e => setQText(e.target.value)}
-              />
-              <label style={{ ...styles.label, color: t.textMuted }}>correct answer</label>
-              <div style={styles.toggleRow}>
-                <button
-                  style={{ ...styles.toggleBtn, borderColor: t.border, color: t.textMuted, ...(qAnswer === true ? styles.toggleActiveGreen : {}) }}
-                  onClick={() => setQAnswer(true)}
-                >TRUE</button>
-                <button
-                  style={{ ...styles.toggleBtn, borderColor: t.border, color: t.textMuted, ...(qAnswer === false ? styles.toggleActivePink : {}) }}
-                  onClick={() => setQAnswer(false)}
-                >FALSE</button>
+          <>
+            <div style={styles.panelGrid}>
+              <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+                <div style={styles.panelTitle}>{'// add_question'}</div>
+                <label style={{ ...styles.label, color: t.textMuted }}>question text</label>
+                <textarea style={{ ...styles.textarea, background: t.pageBg, borderColor: t.border, color: t.text }} rows={3} placeholder="Is JavaScript single-threaded?" value={qText} onChange={e => setQText(e.target.value)} />
+                <label style={{ ...styles.label, color: t.textMuted }}>correct answer</label>
+                <div style={styles.toggleRow}>
+                  <button style={{ ...styles.toggleBtn, borderColor: t.border, color: t.textMuted, ...(qAnswer === true ? styles.toggleActiveGreen : {}) }} onClick={() => setQAnswer(true)}>TRUE</button>
+                  <button style={{ ...styles.toggleBtn, borderColor: t.border, color: t.textMuted, ...(qAnswer === false ? styles.toggleActivePink : {}) }} onClick={() => setQAnswer(false)}>FALSE</button>
+                </div>
+                <label style={{ ...styles.label, color: t.textMuted }}>category</label>
+                <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={qCategory} onChange={e => setQCategory(e.target.value)}>
+                  <option value="">select category</option>
+                  {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                </select>
+                <label style={{ ...styles.label, color: t.textMuted }}>difficulty</label>
+                <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={qDifficulty} onChange={e => setQDifficulty(e.target.value)}>
+                  {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <button style={{ ...styles.primaryBtn, boxShadow: t.shadow, opacity: qSaving ? 0.6 : 1 }} onClick={handleAddQuestion} disabled={qSaving}>
+                  {qSaving ? 'SAVING...' : '+ ADD QUESTION'}
+                </button>
               </div>
-              <label style={{ ...styles.label, color: t.textMuted }}>category</label>
-              <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={qCategory} onChange={e => setQCategory(e.target.value)}>
-                <option value="">select category</option>
-                {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </select>
-              <label style={{ ...styles.label, color: t.textMuted }}>difficulty</label>
-              <select style={{ ...styles.select, background: t.pageBg, borderColor: t.border, color: t.text }} value={qDifficulty} onChange={e => setQDifficulty(e.target.value)}>
-                {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <button style={{ ...styles.primaryBtn, boxShadow: t.shadow, opacity: qSaving ? 0.6 : 1 }} onClick={handleAddQuestion} disabled={qSaving}>
-                {qSaving ? 'SAVING...' : '+ ADD QUESTION'}
-              </button>
+
+              <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
+                <div style={styles.panelTitle}>{'// delete_question'}</div>
+                <label style={{ ...styles.label, color: t.textMuted }}>question ID</label>
+                <input style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }} type="text" placeholder="60d5ecb8b392d700153c3c12" value={deleteId} onChange={e => setDeleteId(e.target.value)} />
+                <div style={{ ...styles.hint, color: t.textMuted }}>{'// paste the _id of the question to remove'}</div>
+                <button style={styles.dangerBtn} onClick={handleDeleteQuestion}>✕ DELETE QUESTION</button>
+              </div>
             </div>
 
-            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow }}>
-              <div style={styles.panelTitle}>{'// delete_question'}</div>
-              <label style={{ ...styles.label, color: t.textMuted }}>question ID</label>
-              <input
-                style={{ ...styles.input, background: t.pageBg, borderColor: t.border, color: t.text }}
-                type="text"
-                placeholder="60d5ecb8b392d700153c3c12"
-                value={deleteId}
-                onChange={e => setDeleteId(e.target.value)}
-              />
-              <div style={{ ...styles.hint, color: t.textMuted }}>{'// paste the _id of the question to remove'}</div>
-              <button style={styles.dangerBtn} onClick={handleDeleteQuestion}>
-                ✕ DELETE QUESTION
-              </button>
+            {/* Question Bank */}
+            <div style={{ ...styles.panel, background: t.cardBg, borderColor: t.border, boxShadow: t.shadow, marginTop: '20px' }}>
+              <div style={styles.panelTitle}>{'// question_bank'}</div>
+              {questionsLoading ? (
+                <div style={{ ...styles.hint, color: t.textMuted }}>{'// loading...'}</div>
+              ) : questionsList.length === 0 ? (
+                <div style={{ ...styles.hint, color: t.textMuted }}>{'// no_questions_found'}</div>
+              ) : (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <div style={styles.qListHead}>
+                    <span style={{ width: '180px', color: t.textMuted }}>ID</span>
+                    <span style={{ flex: 1, color: t.textMuted }}>QUESTION</span>
+                    <span style={{ width: '90px', color: t.textMuted }}>CATEGORY</span>
+                    <span style={{ width: '60px', color: t.textMuted }}>DIFF</span>
+                    <span style={{ width: '40px' }}></span>
+                  </div>
+                  {questionsList.map((q) => (
+                    <div key={q._id} style={{ ...styles.qListRow, borderBottomColor: t.borderLight }}>
+                      <span style={{ width: '180px', color: t.textMuted, fontSize: '9px', fontFamily: "'Space Mono', monospace", wordBreak: 'break-all' }}>{q._id}</span>
+                      <span style={{ flex: 1, color: t.text, fontSize: '11px', lineHeight: 1.4 }}>{q.text}</span>
+                      <span style={{ width: '90px', color: '#66d9e8', fontSize: '10px' }}>{q.category?.name || '?'}</span>
+                      <span style={{ width: '60px', color: t.textMuted, fontSize: '10px' }}>{q.difficulty}</span>
+                      <button style={styles.catDeleteBtn} onClick={() => handleDeleteFromList(q._id)} title="Delete question">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
+          </>
         )}
 
         {/* ---- CATEGORIES ---- */}
@@ -299,6 +315,7 @@ export default function Admin() {
                     <span style={{ ...styles.catDot, background: c.color || t.textMuted }} />
                     <span style={{ ...styles.catName, color: t.text }}>{c.name}</span>
                     <span style={{ ...styles.catSlug, color: t.textMuted }}>{c.slug}</span>
+                    <button style={styles.catDeleteBtn} onClick={() => handleDeleteCategory(c)} title={`Delete ${c.name}`}>✕</button>
                   </div>
                 ))}
               </div>
@@ -367,7 +384,6 @@ export default function Admin() {
 
 const styles = {
   page: { minHeight: '100vh', background: '#272822', fontFamily: "'Space Mono', monospace" },
-
   nav: { background: '#1e1f1a', borderBottom: '3px solid #75715e', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   logo: { fontFamily: "'Space Mono', monospace", fontSize: '18px', fontWeight: 700, color: '#f8f8f2', letterSpacing: '-1px' },
   bracket: { color: '#f92672' },
@@ -376,50 +392,40 @@ const styles = {
   navLink: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', textDecoration: 'none', padding: '5px 14px', border: '2px solid #75715e', borderRight: 'none', textTransform: 'uppercase', letterSpacing: '1px', background: 'transparent' },
   themeToggle: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '2px solid #75715e', padding: '6px 10px', cursor: 'pointer' },
   adminTag: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: '#fd971f', color: '#272822', border: '2px solid #fd971f', padding: '4px 14px', letterSpacing: '1px' },
-
   content: { padding: '28px 24px', maxWidth: '900px', margin: '0 auto' },
-
   tag: { fontSize: '11px', background: '#3e3d32', color: '#75715e', display: 'inline-block', padding: '3px 10px', marginBottom: '10px', letterSpacing: '2px' },
   title: { fontSize: '28px', fontWeight: 700, color: '#f8f8f2', marginBottom: '24px' },
   kw: { color: '#f92672' },
   fn: { color: '#a6e22e' },
-  paren: { color: '#f8f8f2' },
-
   tabsRow: { display: 'flex', flexWrap: 'wrap', gap: '0', marginBottom: '20px', border: '2px solid #75715e', width: 'fit-content' },
   tabBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#75715e', background: 'transparent', border: 'none', borderRight: '2px solid #75715e', padding: '10px 18px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' },
   tabBtnActive: { background: '#fd971f', color: '#272822' },
-
   flash: { fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, padding: '10px 14px', border: '2px solid', letterSpacing: '0.5px', marginBottom: '20px' },
-
   panelGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
   panel: { background: '#1e1f1a', border: '3px solid #75715e', padding: '20px', boxShadow: '4px 4px 0 #3e3d32' },
   panelTitle: { fontSize: '12px', color: '#fd971f', letterSpacing: '1px', marginBottom: '16px', fontWeight: 700 },
-
   label: { display: 'block', fontSize: '10px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', marginTop: '12px' },
   input: { width: '100%', boxSizing: 'border-box', background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '12px', padding: '9px 10px', outline: 'none' },
   textarea: { width: '100%', boxSizing: 'border-box', background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '12px', padding: '9px 10px', outline: 'none', resize: 'vertical' },
   select: { width: '100%', boxSizing: 'border-box', background: '#272822', border: '2px solid #75715e', color: '#f8f8f2', fontFamily: "'Space Mono', monospace", fontSize: '12px', padding: '9px 10px', outline: 'none', cursor: 'pointer' },
-
   toggleRow: { display: 'flex', gap: '8px' },
   toggleBtn: { flex: 1, fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, background: 'transparent', color: '#75715e', border: '2px solid #75715e', padding: '9px', cursor: 'pointer', letterSpacing: '1px' },
   toggleActiveGreen: { background: '#a6e22e', color: '#272822', borderColor: '#a6e22e' },
   toggleActivePink: { background: '#f92672', color: '#f8f8f2', borderColor: '#f92672' },
-
   colorRow: { display: 'flex', alignItems: 'center', gap: '12px' },
   colorPicker: { width: '48px', height: '36px', background: 'transparent', border: '2px solid #75715e', cursor: 'pointer', padding: '2px' },
   colorHex: { fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700 },
-
   primaryBtn: { width: '100%', marginTop: '20px', fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700, background: '#a6e22e', color: '#272822', border: '3px solid #a6e22e', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px', boxShadow: '4px 4px 0 #3e3d32' },
   dangerBtn: { width: '100%', marginTop: '20px', fontFamily: "'Space Mono', monospace", fontSize: '13px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '3px solid #f92672', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '2px' },
-
   hint: { fontSize: '11px', color: '#75715e', fontStyle: 'italic', marginTop: '8px' },
-
   catList: { display: 'flex', flexDirection: 'column', gap: '8px' },
   catItem: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', border: '2px solid #3e3d32' },
   catDot: { width: '12px', height: '12px', borderRadius: '50%', flexShrink: 0 },
   catName: { flex: 1, fontSize: '12px', fontWeight: 700, color: '#f8f8f2' },
   catSlug: { fontSize: '10px', color: '#75715e' },
-
+  catDeleteBtn: { fontFamily: "'Space Mono', monospace", fontSize: '11px', fontWeight: 700, background: 'transparent', color: '#f92672', border: '2px solid #f92672', padding: '2px 8px', cursor: 'pointer', marginLeft: 'auto', flexShrink: 0, transition: 'all 0.15s' },
+  qListHead: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '2px solid #75715e', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px' },
+  qListRow: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: '1px solid #3e3d32', fontSize: '12px' },
   historyWrap: { display: 'flex', flexDirection: 'column' },
   historyHead: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '2px solid #75715e', fontSize: '9px', color: '#75715e', textTransform: 'uppercase', letterSpacing: '1px' },
   historyRow: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: '1px solid #3e3d32', fontSize: '12px' },
