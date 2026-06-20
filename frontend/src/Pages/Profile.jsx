@@ -2,14 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
-<<<<<<< HEAD
 import { getThemeColors } from '../Constants/theme';
 import api from '../API/axios';
-=======
-import { getThemeColors } from '../constants/theme';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-import api from '../api/axios';
->>>>>>> feat/selma-frontend
+
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
