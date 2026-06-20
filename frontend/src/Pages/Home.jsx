@@ -170,7 +170,7 @@ export default function Home() {
             </>
           ) : (
             <>
-              <button onClick={() => navigate('/login')} style={styles.loginBtn}>login()</button>
+              <button onClick={() => navigate('/login')} style={{ ...styles.loginBtn, color: t.green, borderColor: t.green }}>login()</button>
               {!isMobile && <button onClick={() => navigate('/register')} style={styles.registerBtn}>register()</button>}
             </>
           )}
