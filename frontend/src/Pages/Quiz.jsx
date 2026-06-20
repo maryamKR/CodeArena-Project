@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/useAuth';
 import { useTheme } from '../Context/ThemeContext';
 import { getThemeColors } from '../Constants/theme';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import api from '../API/axios';
 
 const NAV_LINKS = [
