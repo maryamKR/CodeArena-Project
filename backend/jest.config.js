@@ -7,8 +7,6 @@ module.exports = {
     "^.+\\.(js|jsx)$": "babel-jest"
   },
   moduleFileExtensions: ["js", "jsx", "json", "node"],
-  // 🎯 Tell Jest to skip this stubborn file entirely for your backend runs
-  modulePathIgnorePatterns: [
-    "<rootDir>/tests/src/__tests__/Challenge.test.jsx"
-  ]
+  // Clean workspace: no need to ignore the new backend/tests/frontend/Challenge.test.js
+  modulePathIgnorePatterns: []
 };
